@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { CheckCircle2, Trash2, Pencil } from "lucide-react";
 import { formatCurrency, formatDate } from "@/shared/lib/formatters";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { Goal } from "@/shared/types";
 
 export function GoalCard({
@@ -15,6 +17,7 @@ export function GoalCard({
   onComplete: (id: number) => void;
   onEdit: (g: Goal) => void;
 }) {
+  const [confirm, setConfirm] = useState(false);
   const current = goal.currentBalance ?? 0;
   const target  = Number(goal.targetAmount);
   const pct     = Math.min(100, target > 0 ? (current / target) * 100 : 0);
@@ -50,7 +53,7 @@ export function GoalCard({
               </button>
             )}
             <button
-              onClick={() => onDelete(goal.id)}
+              onClick={() => setConfirm(true)}
               className="rounded-md p-1.5 transition-colors hover:bg-rose-500/10"
               style={{ color: "hsl(var(--ll-text-muted))" }}
             >
@@ -79,6 +82,14 @@ export function GoalCard({
             style={{ width: `${pct}%`, background: goal.colour }}
           />
         </div>
+
+        <ConfirmDialog
+          open={confirm}
+          onClose={() => setConfirm(false)}
+          onConfirm={() => { setConfirm(false); onDelete(goal.id); }}
+          title="Delete goal?"
+          description="This savings goal and its progress will be permanently removed."
+        />
 
         {goal.targetDate && !goal.isCompleted && (
           <p className="mt-2 text-[11px]" style={{ color: "hsl(var(--ll-text-muted))" }}>

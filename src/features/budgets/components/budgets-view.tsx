@@ -5,6 +5,7 @@ import { Plus, Target, Trash2 } from "lucide-react";
 import { useBudgets } from "@/features/budgets/hooks/useBudgets";
 import { useCategories } from "@/features/categories/hooks/useCategories";
 import { Modal } from "@/components/ui/modal";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency } from "@/shared/lib/formatters";
@@ -17,6 +18,7 @@ export function BudgetsView() {
   const [amount, setAmount]       = useState("");
   const [saving, setSaving]       = useState(false);
   const [error, setError]         = useState("");
+  const [deleteId, setDeleteId]   = useState<number | null>(null);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault(); setSaving(true); setError("");
@@ -88,7 +90,7 @@ export function BudgetsView() {
                       {formatCurrency(b.spent ?? 0)} / {formatCurrency(b.amount)}
                     </span>
                     <button
-                      onClick={() => deleteBudget(b.id)}
+                      onClick={() => setDeleteId(b.id)}
                       className="rounded p-1 transition-colors hover:bg-rose-500/10"
                       style={{ color: "hsl(var(--ll-text-muted))" }}
                     >
@@ -110,6 +112,14 @@ export function BudgetsView() {
           })}
         </div>
       )}
+
+      <ConfirmDialog
+        open={deleteId !== null}
+        onClose={() => setDeleteId(null)}
+        onConfirm={() => { if (deleteId !== null) { deleteBudget(deleteId); setDeleteId(null); } }}
+        title="Delete budget?"
+        description="This spending limit will be permanently removed."
+      />
 
       <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Set Budget" size="sm">
         <form onSubmit={submit} className="space-y-3">

@@ -1,8 +1,10 @@
 "use client";
 
+import { useState } from "react";
 import { Trash2 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/shared/lib/formatters";
 import { Badge } from "@/components/ui/badge";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { Transaction, TransactionType } from "@/shared/types";
 
 const signColor: Record<TransactionType, string> = {
@@ -19,6 +21,8 @@ export function TransactionRow({
   tx: Transaction;
   onDelete: (id: number) => void;
 }) {
+  const [confirm, setConfirm] = useState(false);
+
   return (
     <div className="group flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-white/[0.02]">
       <div
@@ -50,13 +54,21 @@ export function TransactionRow({
       </span>
 
       <button
-        onClick={() => onDelete(tx.id)}
+        onClick={() => setConfirm(true)}
         className="ml-1 rounded p-1 opacity-0 transition-all group-hover:opacity-100 hover:bg-rose-500/10"
         style={{ color: "hsl(var(--ll-text-muted))" }}
         aria-label="Delete"
       >
         <Trash2 className="h-3.5 w-3.5" />
       </button>
+
+      <ConfirmDialog
+        open={confirm}
+        onClose={() => setConfirm(false)}
+        onConfirm={() => { setConfirm(false); onDelete(tx.id); }}
+        title="Delete transaction?"
+        description="This transaction will be permanently removed."
+      />
     </div>
   );
 }

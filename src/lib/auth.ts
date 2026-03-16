@@ -1,9 +1,9 @@
 import { jwtVerify, errors as joseErrors } from "jose";
 import { AuthError } from "@/lib/api";
 
-const secret = new TextEncoder().encode(
-  process.env.AUTH_JWT_SECRET ?? process.env.JWT_ACCESS_SECRET ?? ""
-);
+const secretStr = process.env.AUTH_JWT_SECRET ?? process.env.JWT_ACCESS_SECRET;
+if (!secretStr) throw new Error("AUTH_JWT_SECRET environment variable is required");
+const secret = new TextEncoder().encode(secretStr);
 
 export async function verifyJWT(
   token: string

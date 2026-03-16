@@ -2,19 +2,13 @@ import { db } from "@/lib/db";
 import { ok, fail, handleError, getUserId } from "@/lib/api";
 import { DEFAULT_CATEGORIES } from "@/lib/categories";
 
-// Rate limit: max 3 seeds per IP per hour
-const seedLog = new Map<string, number[]>();
-
 export async function POST(req: Request) {
+  // Seed endpoint disabled in production
+  if (process.env.NODE_ENV === "production")
+    return fail("Not available in production", 403);
+
   try {
     const userId = await getUserId(req);
-    const ip     = req.headers.get("x-forwarded-for") ?? "unknown";
-
-    // Rate limit
-    const now  = Date.now();
-    const hits  = (seedLog.get(ip) ?? []).filter(t => now - t < 3_600_000);
-    if (hits.length >= 3) return fail("Rate limit: try again in an hour", 429);
-    seedLog.set(ip, [...hits, now]);
 
     // Check if already seeded
     const count = await db.transaction.count({ where: { userId } });

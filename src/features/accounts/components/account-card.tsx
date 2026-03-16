@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
 import { formatCurrency } from "@/shared/lib/formatters";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import type { Account } from "@/shared/types";
 
 const accountTypeLabel: Record<string, string> = {
@@ -21,6 +23,7 @@ export function AccountCard({
   onEdit: (a: Account) => void;
   onDelete: (id: number) => void;
 }) {
+  const [confirm, setConfirm] = useState(false);
   const balance = account.balance ?? account.startingBalance;
 
   return (
@@ -50,7 +53,7 @@ export function AccountCard({
               <Pencil className="h-3.5 w-3.5" />
             </button>
             <button
-              onClick={() => onDelete(account.id)}
+              onClick={() => setConfirm(true)}
               className="rounded-md p-1.5 transition-colors hover:bg-rose-500/10"
               style={{ color: "hsl(var(--ll-text-muted))" }}
               aria-label="Delete account"
@@ -59,6 +62,15 @@ export function AccountCard({
             </button>
           </div>
         </div>
+        <ConfirmDialog
+          open={confirm}
+          onClose={() => setConfirm(false)}
+          onConfirm={() => { setConfirm(false); onDelete(account.id); }}
+          title="Delete account?"
+          description="All transactions linked to this account will also be removed."
+          variant="danger"
+        />
+
         <p className={`ll-mono ll-balance mt-3 text-2xl font-bold ${balance < 0 ? "ll-balance-negative" : ""}`}>
           {formatCurrency(balance)}
         </p>
