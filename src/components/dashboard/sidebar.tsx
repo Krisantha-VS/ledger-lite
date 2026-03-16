@@ -59,7 +59,9 @@ export function Sidebar() {
                   : "hover:text-[hsl(var(--ll-text-primary))]",
               )}
               style={{
-                background: active ? "hsl(var(--ll-accent) / 0.1)" : undefined,
+                background:  active ? "hsl(var(--ll-accent) / 0.12)" : undefined,
+                borderLeft:  active ? "3px solid hsl(var(--ll-accent))" : "3px solid transparent",
+                paddingLeft: "9px",
                 color: active ? undefined : "hsl(var(--ll-text-secondary))",
               }}
             >

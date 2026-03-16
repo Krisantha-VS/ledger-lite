@@ -30,7 +30,7 @@ export function MobileNav() {
           <Link
             key={href}
             href={href}
-            className="flex flex-1 flex-col items-center justify-center gap-0.5 py-2 transition-colors"
+            className="flex flex-1 flex-col items-center justify-center gap-0.5 py-3.5 transition-colors"
             style={{ color: active ? "hsl(var(--ll-accent))" : "hsl(var(--ll-text-muted))" }}
           >
             <Icon className="h-5 w-5" />

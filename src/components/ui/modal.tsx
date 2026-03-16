@@ -43,7 +43,7 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
           </h2>
           <button
             onClick={onClose}
-            className="rounded-md p-1 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+            className="ll-focus-ring rounded-md p-1 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
             style={{ color: "hsl(var(--ll-text-muted))" }}
             aria-label="Close"
           >

@@ -22,14 +22,14 @@
   --ll-expense: 347 77% 52%;
   --ll-warning: 38 92% 44%;
 
-  /* Text */
+  /* Text — WCAG AA compliant on #f4f6fb */
   --ll-text-primary:   222 47% 11%;
-  --ll-text-secondary: 215 16% 40%;
-  --ll-text-muted:     215 14% 55%;
+  --ll-text-secondary: 215 14% 25%;
+  --ll-text-muted:     215 16% 35%;
 
   /* Borders */
-  --ll-border:        220 20% 88%;
-  --ll-border-strong: 215 20% 72%;
+  --ll-border:        220 20% 78%;
+  --ll-border-strong: 215 20% 60%;
 
   /* Chart palette */
   --chart-income:  142 71% 38%;
@@ -158,6 +158,11 @@ body {
 .ll-input:focus {
   border-color: hsl(var(--ll-accent));
   box-shadow: 0 0 0 3px hsl(var(--ll-accent) / 0.15);
+  outline: none;
+}
+.ll-input:focus-visible {
+  box-shadow: 0 0 0 3px hsl(var(--ll-accent) / 0.2),
+              0 0 0 2px hsl(var(--ll-accent));
 }
 
 /* select option colours follow system */
@@ -168,8 +173,21 @@ body {
 
 /* ─── Semantic amount colours ────────────────────────── */
 
-.ll-income  { color: hsl(var(--ll-income)); }
-.ll-expense { color: hsl(var(--ll-expense)); }
+.ll-income           { color: hsl(var(--ll-income)); }
+.ll-expense          { color: hsl(var(--ll-expense)); }
+.ll-balance-positive { color: hsl(var(--ll-income)); }
+.ll-balance-negative { color: hsl(var(--ll-expense)); }
+
+/* ─── Focus ring — WCAG 2.4.7 ───────────────────────── */
+
+.ll-focus-ring {
+  outline: none;
+  transition: box-shadow 150ms;
+}
+.ll-focus-ring:focus-visible {
+  box-shadow: 0 0 0 3px hsl(var(--ll-accent) / 0.15),
+              0 0 0 2px hsl(var(--ll-accent));
+}
 
 /* ─── Scrollbar ──────────────────────────────────────── */
 

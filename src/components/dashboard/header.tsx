@@ -52,7 +52,7 @@ export function Header() {
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}
-          className="rounded-lg p-2 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
+          className="ll-focus-ring rounded-lg p-2 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
           style={{ color: "hsl(var(--ll-text-muted))" }}
           aria-label="Toggle theme"
         >
@@ -63,7 +63,7 @@ export function Header() {
         {/* Logout */}
         <button
           onClick={logout}
-          className="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-rose-500/10"
+          className="ll-focus-ring flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors hover:bg-rose-500/10"
           style={{ color: "hsl(var(--ll-text-muted))" }}
           aria-label="Sign out"
         >

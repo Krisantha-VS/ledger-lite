@@ -59,10 +59,7 @@ export function AccountCard({
             </button>
           </div>
         </div>
-        <p
-          className="ll-mono mt-3 text-2xl font-bold tracking-tight"
-          style={{ color: balance >= 0 ? "hsl(var(--ll-text-primary))" : "hsl(var(--ll-expense))" }}
-        >
+        <p className={`ll-mono ll-balance mt-3 text-2xl font-bold ${balance < 0 ? "ll-balance-negative" : ""}`}>
           {formatCurrency(balance)}
         </p>
       </div>
