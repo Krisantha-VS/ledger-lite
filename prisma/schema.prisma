@@ -82,11 +82,13 @@ model Transaction {
 
   createdAt   DateTime        @default(now())
   updatedAt   DateTime        @updatedAt
+  deletedAt   DateTime?
 
   @@index([userId, date])
   @@index([accountId])
   @@index([categoryId])
   @@index([userId, nextDue])
+  @@index([userId, deletedAt])
 }
 
 enum TransactionType {
@@ -118,6 +120,32 @@ model Budget {
 
 enum Period {
   monthly
+}
+
+// ─── Audit Log ────────────────────────────────────────────
+
+model AuditLog {
+  id         Int      @id @default(autoincrement())
+  userId     String   @db.VarChar(36)
+  action     String   @db.VarChar(50)   // e.g. "transaction.delete"
+  entityType String   @db.VarChar(50)
+  entityId   Int
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  @@index([userId, createdAt])
+}
+
+// ─── User Settings ────────────────────────────────────────
+
+model UserSettings {
+  id            Int      @id @default(autoincrement())
+  userId        String   @unique @db.VarChar(36)
+  currency      String   @default("USD") @db.Char(3)
+  locale        String   @default("en-US") @db.VarChar(10)
+  theme         String   @default("system") @db.VarChar(10)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 // ─── Goals ────────────────────────────────────────────────

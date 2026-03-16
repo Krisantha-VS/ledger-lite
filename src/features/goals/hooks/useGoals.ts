@@ -1,55 +1,68 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { authFetch } from "@/shared/lib/auth-client";
 import type { Goal } from "@/shared/types";
 
-export function useGoals() {
-  const [goals, setGoals]   = useState<Goal[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError]   = useState<string | null>(null);
+const KEY = ["goals"];
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res  = await authFetch("/api/v1/goals");
+async function fetchGoals(): Promise<Goal[]> {
+  const res  = await authFetch("/api/v1/goals");
+  const json = await res.json();
+  if (!json.success) throw new Error(json.error);
+  return json.data;
+}
+
+export function useGoals() {
+  const qc = useQueryClient();
+
+  const { data: goals = [], isLoading: loading, error } = useQuery({
+    queryKey: KEY,
+    queryFn: fetchGoals,
+  });
+
+  const createGoal = useMutation({
+    mutationFn: async (payload: {
+      name: string; targetAmount: number; targetDate?: string | null;
+      accountId?: number | null; colour?: string;
+    }) => {
+      const res  = await authFetch("/api/v1/goals", { method: "POST", body: JSON.stringify(payload) });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
-      setGoals(json.data);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to load goals");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      return json.data as Goal;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: KEY }); toast.success("Goal created"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
-  useEffect(() => { load(); }, [load]);
+  const updateGoal = useMutation({
+    mutationFn: async ({ id, payload }: { id: number; payload: Partial<Goal> }) => {
+      const res  = await authFetch(`/api/v1/goals/${id}`, { method: "PATCH", body: JSON.stringify(payload) });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+      return json.data as Goal;
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: KEY }); toast.success("Goal updated"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
-  const createGoal = useCallback(async (payload: {
-    name: string; targetAmount: number; targetDate?: string | null;
-    accountId?: number | null; colour?: string;
-  }) => {
-    const res  = await authFetch("/api/v1/goals", { method: "POST", body: JSON.stringify(payload) });
-    const json = await res.json();
-    if (!json.success) throw new Error(json.error);
-    await load();
-    return json.data as Goal;
-  }, [load]);
+  const deleteGoal = useMutation({
+    mutationFn: async (id: number) => {
+      const res  = await authFetch(`/api/v1/goals/${id}`, { method: "DELETE" });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error);
+    },
+    onSuccess: () => { qc.invalidateQueries({ queryKey: KEY }); toast.success("Goal deleted"); },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
-  const updateGoal = useCallback(async (id: number, payload: Partial<Goal>) => {
-    const res  = await authFetch(`/api/v1/goals/${id}`, { method: "PATCH", body: JSON.stringify(payload) });
-    const json = await res.json();
-    if (!json.success) throw new Error(json.error);
-    await load();
-    return json.data as Goal;
-  }, [load]);
-
-  const deleteGoal = useCallback(async (id: number) => {
-    const res  = await authFetch(`/api/v1/goals/${id}`, { method: "DELETE" });
-    const json = await res.json();
-    if (!json.success) throw new Error(json.error);
-    await load();
-  }, [load]);
-
-  return { goals, loading, error, reload: load, createGoal, updateGoal, deleteGoal };
+  return {
+    goals,
+    loading,
+    error: error ? (error as Error).message : null,
+    createGoal: (p: Parameters<typeof createGoal.mutateAsync>[0]) => createGoal.mutateAsync(p),
+    updateGoal: (id: number, payload: Partial<Goal>) => updateGoal.mutateAsync({ id, payload }),
+    deleteGoal: (id: number) => deleteGoal.mutateAsync(id),
+  };
 }

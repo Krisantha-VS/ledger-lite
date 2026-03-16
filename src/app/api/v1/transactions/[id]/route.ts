@@ -15,7 +15,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
     const id     = parseInt((await params).id);
     const body   = UpdateSchema.parse(await req.json());
 
-    const existing = await db.transaction.findFirst({ where: { id, userId } });
+    const existing = await db.transaction.findFirst({ where: { id, userId, deletedAt: null } });
     if (!existing) return notFound();
 
     const data: Record<string, unknown> = { ...body };
@@ -30,10 +30,15 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
     const userId = await getUserId(req);
     const id     = parseInt((await params).id);
 
-    const existing = await db.transaction.findFirst({ where: { id, userId } });
+    const existing = await db.transaction.findFirst({ where: { id, userId, deletedAt: null } });
     if (!existing) return notFound();
 
-    await db.transaction.delete({ where: { id } });
+    const now = new Date();
+    await db.$transaction([
+      db.transaction.update({ where: { id }, data: { deletedAt: now } }),
+      db.auditLog.create({ data: { userId, action: "transaction.delete", entityType: "Transaction", entityId: id } }),
+    ]);
+
     return ok({ deleted: true });
   } catch (e) { return handleError(e); }
 }

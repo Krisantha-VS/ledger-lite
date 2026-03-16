@@ -24,7 +24,7 @@ export async function GET(req: Request) {
     // Lazy-create overdue recurring transactions (idempotent)
     await processRecurring(userId);
 
-    const where: Prisma.TransactionWhereInput = { userId };
+    const where: Prisma.TransactionWhereInput = { userId, deletedAt: null };
     if (p.get("accountId"))  where.accountId  = parseInt(p.get("accountId")!);
     if (p.get("categoryId")) where.categoryId = parseInt(p.get("categoryId")!);
     if (p.get("type") && ["income","expense","transfer"].includes(p.get("type")!))
