@@ -7,12 +7,12 @@ const REFRESH_KEY = "ll_refresh";
 // ─── Storage ─────────────────────────────────────────────
 
 export function storeTokens(access: string, refresh: string) {
-  sessionStorage.setItem(TOKEN_KEY, access);
+  localStorage.setItem(TOKEN_KEY, access);
   localStorage.setItem(REFRESH_KEY, refresh);
 }
 
 export function getAccessToken(): string | null {
-  return sessionStorage.getItem(TOKEN_KEY);
+  return localStorage.getItem(TOKEN_KEY);
 }
 
 export function getRefreshToken(): string | null {
@@ -20,7 +20,7 @@ export function getRefreshToken(): string | null {
 }
 
 export function clearTokens() {
-  sessionStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(TOKEN_KEY);
   localStorage.removeItem(REFRESH_KEY);
 }
 

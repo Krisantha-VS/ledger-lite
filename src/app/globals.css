@@ -1,47 +1,83 @@
 @import "tailwindcss";
 
+/* ─── Tailwind v4: class-based dark mode ──────────────── */
+@variant dark (&:where(.dark, .dark *));
+
 /* ─── LedgerLite Design Tokens ───────────────────────────
-   Dark-first. Indigo-500 accent. Zinc/slate neutrals.
-   All monetary text must carry the `tabular-nums` class.
+   Light mode by default. Dark mode via .dark class (next-themes).
    ─────────────────────────────────────────────────────── */
 
 :root {
-  /* Backgrounds — layered depth */
+  /* Backgrounds */
+  --ll-bg-base:     #f4f6fb;
+  --ll-bg-surface:  #ffffff;
+  --ll-bg-elevated: #eef0f7;
+
+  /* Accent — indigo-500 */
+  --ll-accent:       239 84% 67%;
+  --ll-accent-hover: 238 72% 59%;
+
+  /* Semantic financial */
+  --ll-income:  142 71% 38%;
+  --ll-expense: 347 77% 52%;
+  --ll-warning: 38 92% 44%;
+
+  /* Text */
+  --ll-text-primary:   222 47% 11%;
+  --ll-text-secondary: 215 16% 40%;
+  --ll-text-muted:     215 14% 55%;
+
+  /* Borders */
+  --ll-border:        220 20% 88%;
+  --ll-border-strong: 215 20% 72%;
+
+  /* Chart palette */
+  --chart-income:  142 71% 38%;
+  --chart-expense: 347 77% 52%;
+  --chart-savings: 239 84% 67%;
+  --chart-cat-1:   217 91% 55%;
+  --chart-cat-2:   38 92% 44%;
+  --chart-cat-3:   322 81% 58%;
+  --chart-cat-4:   263 70% 50%;
+  --chart-cat-5:   160 84% 34%;
+}
+
+.dark {
+  /* Backgrounds */
   --ll-bg-base:     #0f1117;
   --ll-bg-surface:  #1a1d27;
   --ll-bg-elevated: #22263a;
 
-  /* Accent — indigo-500 */
-  --ll-accent:      239 84% 67%;
-  --ll-accent-hover:238 72% 59%;
+  /* Accent unchanged */
+  --ll-accent:       239 84% 67%;
+  --ll-accent-hover: 238 72% 59%;
 
-  /* Semantic financial */
-  --ll-income:      142 71% 45%;   /* green-500  #22c55e */
-  --ll-expense:     347 77% 60%;   /* rose-500   #f43f5e */
-  --ll-warning:     38 92% 50%;    /* amber-500  #f59e0b */
+  /* Semantic financial — brighter for dark bg */
+  --ll-income:  142 71% 45%;
+  --ll-expense: 347 77% 60%;
+  --ll-warning: 38 92% 50%;
 
   /* Text */
-  --ll-text-primary:   248 87% 97%;  /* slate-100  #f1f5f9 */
-  --ll-text-secondary: 215 16% 57%;  /* slate-400  #94a3b8 */
-  --ll-text-muted:     215 14% 34%;  /* slate-600  #475569 */
+  --ll-text-primary:   248 87% 97%;
+  --ll-text-secondary: 215 16% 57%;
+  --ll-text-muted:     215 14% 40%;
 
   /* Borders */
-  --ll-border:        220 26% 14%;  /* subtle     #1e2740 */
-  --ll-border-strong: 215 25% 27%;  /* strong     #334155 */
+  --ll-border:        220 26% 14%;
+  --ll-border-strong: 215 25% 27%;
 
-  /* Chart palette (8 semantic slots) */
-  --chart-income:    142 71% 45%;
-  --chart-expense:   347 77% 60%;
-  --chart-savings:   239 84% 67%;
-  --chart-cat-1:     217 91% 60%;   /* blue-500   */
-  --chart-cat-2:     38 92% 50%;    /* amber-500  */
-  --chart-cat-3:     322 81% 64%;   /* pink-500   */
-  --chart-cat-4:     263 70% 50%;   /* violet-500 */
-  --chart-cat-5:     160 84% 39%;   /* emerald-600*/
+  /* Chart palette */
+  --chart-income:  142 71% 45%;
+  --chart-expense: 347 77% 60%;
+  --chart-savings: 239 84% 67%;
+  --chart-cat-1:   217 91% 60%;
+  --chart-cat-2:   38 92% 50%;
+  --chart-cat-3:   322 81% 64%;
+  --chart-cat-4:   263 70% 50%;
+  --chart-cat-5:   160 84% 39%;
 }
 
-/* ─── Base ────────────────────────────────────────────── */
-
+/* ─── Tailwind theme bridge ───────────────────────────── */
 @theme inline {
   --color-ll-accent:         hsl(var(--ll-accent));
   --color-ll-income:         hsl(var(--ll-income));
@@ -49,6 +85,8 @@
   --color-ll-text-secondary: hsl(var(--ll-text-secondary));
   --color-ll-border:         hsl(var(--ll-border));
 }
+
+/* ─── Base ────────────────────────────────────────────── */
 
 * { border-color: hsl(var(--ll-border)); }
 
@@ -58,11 +96,11 @@ body {
   font-feature-settings: "rlig" 1, "calt" 1;
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  transition: background-color 200ms, color 200ms;
 }
 
 /* ─── Typography ─────────────────────────────────────── */
 
-/* All financial amounts — tabular figures prevent layout shift */
 .ll-mono {
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
@@ -79,7 +117,7 @@ body {
 .ll-card {
   background: var(--ll-bg-surface);
   border: 1px solid hsl(var(--ll-border));
-  border-radius: 0.75rem;  /* rounded-xl */
+  border-radius: 0.75rem;
 }
 
 .ll-card-hover {
@@ -87,15 +125,19 @@ body {
 }
 .ll-card-hover:hover {
   border-color: hsl(var(--ll-border-strong));
-  box-shadow: 0 4px 24px 0 rgba(0,0,0,0.25);
+  box-shadow: 0 4px 24px 0 rgba(0,0,0,0.08);
 }
 
-/* Glass variant — for modals and overlays */
+/* Glass variant — modals and overlays */
 .ll-glass {
-  background: rgba(26, 29, 39, 0.75);
+  background: rgba(255, 255, 255, 0.85);
   backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(0, 0, 0, 0.07);
   border-radius: 1rem;
+}
+.dark .ll-glass {
+  background: rgba(26, 29, 39, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.06);
 }
 
 /* ─── Inputs ─────────────────────────────────────────── */
@@ -104,7 +146,7 @@ body {
   width: 100%;
   height: 2.5rem;
   padding: 0 0.75rem;
-  background: rgba(255,255,255,0.03);
+  background: hsl(var(--ll-bg-elevated));
   border: 1px solid hsl(var(--ll-border-strong));
   border-radius: 0.5rem;
   font-size: 0.875rem;
@@ -116,6 +158,12 @@ body {
 .ll-input:focus {
   border-color: hsl(var(--ll-accent));
   box-shadow: 0 0 0 3px hsl(var(--ll-accent) / 0.15);
+}
+
+/* select option colours follow system */
+.ll-input option {
+  background: var(--ll-bg-surface);
+  color: hsl(var(--ll-text-primary));
 }
 
 /* ─── Semantic amount colours ────────────────────────── */
