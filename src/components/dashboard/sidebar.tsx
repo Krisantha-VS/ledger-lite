@@ -24,7 +24,7 @@ export function Sidebar() {
     <aside
       className="flex h-full w-64 flex-col"
       style={{
-        background: "#0d0f18",
+        background: "var(--ll-bg-surface)",
         borderRight: "1px solid hsl(var(--ll-border))",
       }}
     >

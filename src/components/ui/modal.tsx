@@ -27,8 +27,7 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4"
-      style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 dark:bg-black/75 backdrop-blur-sm"
       onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}
     >
       <div
@@ -44,7 +43,7 @@ export function Modal({ open, onClose, title, children, size = "md" }: ModalProp
           </h2>
           <button
             onClick={onClose}
-            className="rounded-md p-1 transition-colors hover:bg-white/5"
+            className="rounded-md p-1 transition-colors hover:bg-black/5 dark:hover:bg-white/5"
             style={{ color: "hsl(var(--ll-text-muted))" }}
             aria-label="Close"
           >
