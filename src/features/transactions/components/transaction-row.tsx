@@ -1,0 +1,62 @@
+"use client";
+
+import { Trash2 } from "lucide-react";
+import { formatCurrency, formatDate } from "@/shared/lib/formatters";
+import { Badge } from "@/components/ui/badge";
+import type { Transaction, TransactionType } from "@/shared/types";
+
+const signColor: Record<TransactionType, string> = {
+  income:   "hsl(var(--ll-income))",
+  expense:  "hsl(var(--ll-expense))",
+  transfer: "hsl(var(--ll-accent))",
+};
+const sign: Record<TransactionType, string> = { income: "+", expense: "-", transfer: "" };
+
+export function TransactionRow({
+  tx,
+  onDelete,
+}: {
+  tx: Transaction;
+  onDelete: (id: number) => void;
+}) {
+  return (
+    <div className="group flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-white/[0.02]">
+      <div
+        className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-sm"
+        style={{ background: "hsl(var(--ll-accent) / 0.08)" }}
+      >
+        {tx.categoryIcon ?? "💸"}
+      </div>
+
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-xs font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
+          {tx.note ?? tx.categoryName}
+        </p>
+        <div className="flex items-center gap-1.5">
+          <span className="text-[11px]" style={{ color: "hsl(var(--ll-text-muted))" }}>
+            {formatDate(tx.date, "short")}
+          </span>
+          <Badge variant={tx.type}>{tx.type}</Badge>
+          {tx.isRecurring && (
+            <span className="rounded bg-white/5 px-1 text-[10px]" style={{ color: "hsl(var(--ll-text-muted))" }}>
+              recurring
+            </span>
+          )}
+        </div>
+      </div>
+
+      <span className="ll-mono text-xs font-semibold" style={{ color: signColor[tx.type] }}>
+        {sign[tx.type]}{formatCurrency(tx.amount)}
+      </span>
+
+      <button
+        onClick={() => onDelete(tx.id)}
+        className="ml-1 rounded p-1 opacity-0 transition-all group-hover:opacity-100 hover:bg-rose-500/10"
+        style={{ color: "hsl(var(--ll-text-muted))" }}
+        aria-label="Delete"
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+      </button>
+    </div>
+  );
+}

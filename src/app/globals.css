@@ -1,0 +1,130 @@
+@import "tailwindcss";
+
+/* ─── LedgerLite Design Tokens ───────────────────────────
+   Dark-first. Indigo-500 accent. Zinc/slate neutrals.
+   All monetary text must carry the `tabular-nums` class.
+   ─────────────────────────────────────────────────────── */
+
+:root {
+  /* Backgrounds — layered depth */
+  --ll-bg-base:     #0f1117;
+  --ll-bg-surface:  #1a1d27;
+  --ll-bg-elevated: #22263a;
+
+  /* Accent — indigo-500 */
+  --ll-accent:      239 84% 67%;
+  --ll-accent-hover:238 72% 59%;
+
+  /* Semantic financial */
+  --ll-income:      142 71% 45%;   /* green-500  #22c55e */
+  --ll-expense:     347 77% 60%;   /* rose-500   #f43f5e */
+  --ll-warning:     38 92% 50%;    /* amber-500  #f59e0b */
+
+  /* Text */
+  --ll-text-primary:   248 87% 97%;  /* slate-100  #f1f5f9 */
+  --ll-text-secondary: 215 16% 57%;  /* slate-400  #94a3b8 */
+  --ll-text-muted:     215 14% 34%;  /* slate-600  #475569 */
+
+  /* Borders */
+  --ll-border:        220 26% 14%;  /* subtle     #1e2740 */
+  --ll-border-strong: 215 25% 27%;  /* strong     #334155 */
+
+  /* Chart palette (8 semantic slots) */
+  --chart-income:    142 71% 45%;
+  --chart-expense:   347 77% 60%;
+  --chart-savings:   239 84% 67%;
+  --chart-cat-1:     217 91% 60%;   /* blue-500   */
+  --chart-cat-2:     38 92% 50%;    /* amber-500  */
+  --chart-cat-3:     322 81% 64%;   /* pink-500   */
+  --chart-cat-4:     263 70% 50%;   /* violet-500 */
+  --chart-cat-5:     160 84% 39%;   /* emerald-600*/
+}
+
+/* ─── Base ────────────────────────────────────────────── */
+
+@theme inline {
+  --color-ll-accent:         hsl(var(--ll-accent));
+  --color-ll-income:         hsl(var(--ll-income));
+  --color-ll-expense:        hsl(var(--ll-expense));
+  --color-ll-text-secondary: hsl(var(--ll-text-secondary));
+  --color-ll-border:         hsl(var(--ll-border));
+}
+
+* { border-color: hsl(var(--ll-border)); }
+
+body {
+  background-color: var(--ll-bg-base);
+  color: hsl(var(--ll-text-primary));
+  font-feature-settings: "rlig" 1, "calt" 1;
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* ─── Typography ─────────────────────────────────────── */
+
+/* All financial amounts — tabular figures prevent layout shift */
+.ll-mono {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.ll-balance {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1, "cv02" 1;
+  letter-spacing: -0.03em;
+}
+
+/* ─── Cards ──────────────────────────────────────────── */
+
+.ll-card {
+  background: var(--ll-bg-surface);
+  border: 1px solid hsl(var(--ll-border));
+  border-radius: 0.75rem;  /* rounded-xl */
+}
+
+.ll-card-hover {
+  transition: border-color 150ms, box-shadow 150ms;
+}
+.ll-card-hover:hover {
+  border-color: hsl(var(--ll-border-strong));
+  box-shadow: 0 4px 24px 0 rgba(0,0,0,0.25);
+}
+
+/* Glass variant — for modals and overlays */
+.ll-glass {
+  background: rgba(26, 29, 39, 0.75);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 1rem;
+}
+
+/* ─── Inputs ─────────────────────────────────────────── */
+
+.ll-input {
+  width: 100%;
+  height: 2.5rem;
+  padding: 0 0.75rem;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid hsl(var(--ll-border-strong));
+  border-radius: 0.5rem;
+  font-size: 0.875rem;
+  color: hsl(var(--ll-text-primary));
+  transition: border-color 150ms, box-shadow 150ms;
+  outline: none;
+}
+.ll-input::placeholder { color: hsl(var(--ll-text-muted)); }
+.ll-input:focus {
+  border-color: hsl(var(--ll-accent));
+  box-shadow: 0 0 0 3px hsl(var(--ll-accent) / 0.15);
+}
+
+/* ─── Semantic amount colours ────────────────────────── */
+
+.ll-income  { color: hsl(var(--ll-income)); }
+.ll-expense { color: hsl(var(--ll-expense)); }
+
+/* ─── Scrollbar ──────────────────────────────────────── */
+
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: hsl(var(--ll-border-strong)); border-radius: 3px; }

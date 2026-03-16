@@ -1,0 +1,4 @@
+import type { Metadata } from "next";
+import { BudgetsView } from "@/features/budgets/components/budgets-view";
+export const metadata: Metadata = { title: "Budgets · LedgerLite" };
+export default function BudgetsPage() { return <BudgetsView />; }
