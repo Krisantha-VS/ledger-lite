@@ -29,8 +29,13 @@ export function middleware(req: NextRequest) {
   // ── CORS for API routes ───────────────────────────────
   if (pathname.startsWith("/api/")) {
     const origin = req.headers.get("origin");
+    const host   = req.headers.get("host") ?? "";
 
-    if (origin && !ALLOWED_ORIGINS.includes(origin)) {
+    // Allow same-host origins (first-party browser requests) + explicit allowlist
+    const isSameHost   = origin ? origin.includes(host) : true;
+    const isAllowListed = origin ? ALLOWED_ORIGINS.includes(origin) : true;
+
+    if (origin && !isSameHost && !isAllowListed) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
@@ -50,13 +55,11 @@ export function middleware(req: NextRequest) {
     if (["POST", "PATCH", "DELETE"].includes(req.method)) {
       const reqOrigin  = req.headers.get("origin");
       const reqReferer = req.headers.get("referer");
-      const host       = req.headers.get("host");
 
-      const originOk  = !reqOrigin  || ALLOWED_ORIGINS.includes(reqOrigin);
-      const refererOk = !reqReferer || ALLOWED_ORIGINS.some(o => reqReferer.startsWith(o));
-      const sameHost  = !reqOrigin  || (host && reqOrigin.includes(host));
+      const originOk  = !reqOrigin  || reqOrigin.includes(host) || ALLOWED_ORIGINS.includes(reqOrigin);
+      const refererOk = !reqReferer || reqReferer.includes(host) || ALLOWED_ORIGINS.some(o => reqReferer.startsWith(o));
 
-      if (!originOk && !refererOk && !sameHost) {
+      if (!originOk && !refererOk) {
         return new NextResponse(JSON.stringify({ success: false, error: "CSRF check failed" }), {
           status: 403,
           headers: { "Content-Type": "application/json" },
