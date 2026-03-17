@@ -1,135 +1,143 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Modal } from "@/components/ui/modal";
 import { useAccounts } from "@/features/accounts/hooks/useAccounts";
 import { useCategories } from "@/features/categories/hooks/useCategories";
 
-interface TxPayload {
-  accountId: number;
-  categoryId: number;
-  type: string;
-  amount: number;
-  date: string;
-  note?: string;
-  transferToId?: number;
-}
+const schema = z.object({
+  type:         z.enum(["expense", "income", "transfer"]),
+  accountId:    z.number().int().positive("Account is required"),
+  categoryId:   z.number().int().positive("Category is required"),
+  amount:       z.number().positive("Amount must be greater than 0"),
+  date:         z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date"),
+  note:         z.string().max(300).optional(),
+  transferToId: z.number().int().positive().optional(),
+});
+type FormData = z.infer<typeof schema>;
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSave: (payload: TxPayload) => Promise<void>;
+  onSave: (payload: FormData) => Promise<void>;
 }
 
 export function TransactionModal({ open, onClose, onSave }: Props) {
-  const { accounts }    = useAccounts();
-  const { categories }  = useCategories();
+  const { accounts }   = useAccounts();
+  const { categories } = useCategories();
 
-  const [type, setType]         = useState("expense");
-  const [accountId, setAccount] = useState("");
-  const [catId, setCat]         = useState("");
-  const [amount, setAmount]     = useState("");
-  const [date, setDate]         = useState(new Date().toISOString().slice(0, 10));
-  const [note, setNote]         = useState("");
-  const [transferTo, setTransferTo] = useState("");
-  const [saving, setSaving]     = useState(false);
-  const [error, setError]       = useState("");
+  const { register, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: {
+      type: "expense",
+      date: new Date().toISOString().slice(0, 10),
+    },
+  });
 
-  useEffect(() => {
-    if (!open) return;
-    setType("expense"); setAmount(""); setNote(""); setError("");
-    setDate(new Date().toISOString().slice(0, 10));
-    if (accounts.length)   setAccount(String(accounts[0].id));
-    if (categories.length) setCat(String(categories[0].id));
-  }, [open, accounts, categories]);
+  const type      = watch("type");
+  const accountId = watch("accountId");
 
   const filteredCats = categories.filter(c =>
     type === "income"  ? c.type !== "expense" :
     type === "expense" ? c.type !== "income"  : true
   );
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setSaving(true); setError("");
-    try {
-      const payload: TxPayload = {
-        accountId:  parseInt(accountId),
-        categoryId: parseInt(catId),
-        type,
-        amount:     parseFloat(amount),
-        date,
-        note:       note || undefined,
-      };
-      if (type === "transfer" && transferTo) payload.transferToId = parseInt(transferTo);
-      await onSave(payload);
-      onClose();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save");
-    } finally {
-      setSaving(false);
-    }
-  };
+  useEffect(() => {
+    if (!open) return;
+    reset({
+      type:       "expense",
+      accountId:  accounts[0]?.id,
+      categoryId: categories.find(c => c.type !== "income")?.id,
+      amount:     undefined,
+      date:       new Date().toISOString().slice(0, 10),
+      note:       "",
+    });
+  }, [open, accounts, categories, reset]);
 
-  const inputStyle = "ll-input";
+  const onSubmit = async (data: FormData) => {
+    await onSave(data);
+    onClose();
+  };
 
   return (
     <Modal open={open} onClose={onClose} title="New Transaction" size="md">
-      <form onSubmit={submit} className="space-y-3">
+      <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+
         {/* Type tabs */}
-        <div className="flex rounded-lg p-0.5" style={{ background: "hsl(var(--ll-bg-base))" }}>
-          {["expense", "income", "transfer"].map(t => (
-            <button
-              key={t} type="button"
-              onClick={() => setType(t)}
-              className="flex-1 rounded-md py-1.5 text-xs font-medium capitalize transition-all"
-              style={{
-                background: type === t ? "hsl(var(--ll-bg-surface))" : "transparent",
-                color: type === t ? "hsl(var(--ll-text-primary))" : "hsl(var(--ll-text-muted))",
-              }}
-            >
-              {t}
-            </button>
-          ))}
+        <fieldset>
+          <legend className="sr-only">Transaction type</legend>
+          <div className="flex rounded-lg p-0.5" style={{ background: "hsl(var(--ll-bg-base))" }}>
+            {(["expense", "income", "transfer"] as const).map(t => (
+              <label key={t} className="flex-1">
+                <input type="radio" value={t} className="sr-only" {...register("type")} />
+                <span
+                  className="block cursor-pointer rounded-md py-1.5 text-center text-xs font-medium capitalize transition-all"
+                  style={{
+                    background: type === t ? "hsl(var(--ll-bg-surface))" : "transparent",
+                    color: type === t ? "hsl(var(--ll-text-primary))" : "hsl(var(--ll-text-muted))",
+                  }}
+                >
+                  {t}
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
+        <div>
+          <label className="mb-1 block text-xs font-medium" style={{ color: "hsl(var(--ll-text-secondary))" }}>Account</label>
+          <select className="ll-input" aria-label="Account" {...register("accountId", { valueAsNumber: true })}>
+            {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+          {errors.accountId && <p className="mt-0.5 text-xs" style={{ color: "hsl(var(--ll-expense))" }}>{errors.accountId.message}</p>}
         </div>
 
-        <select className={inputStyle} value={accountId} onChange={e => setAccount(e.target.value)}>
-          {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-        </select>
-
         {type === "transfer" && (
-          <select className={inputStyle} value={transferTo} onChange={e => setTransferTo(e.target.value)}>
-            <option value="">Transfer to account…</option>
-            {accounts.filter(a => String(a.id) !== accountId).map(a => (
-              <option key={a.id} value={a.id}>{a.name}</option>
-            ))}
-          </select>
+          <div>
+            <label className="mb-1 block text-xs font-medium" style={{ color: "hsl(var(--ll-text-secondary))" }}>Transfer to</label>
+            <select className="ll-input" aria-label="Transfer to account" {...register("transferToId", { valueAsNumber: true })}>
+              <option value="">Select account…</option>
+              {accounts.filter(a => a.id !== Number(accountId)).map(a => (
+                <option key={a.id} value={a.id}>{a.name}</option>
+              ))}
+            </select>
+          </div>
         )}
 
-        <select className={inputStyle} value={catId} onChange={e => setCat(e.target.value)}>
-          {filteredCats.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
-        </select>
+        <div>
+          <label className="mb-1 block text-xs font-medium" style={{ color: "hsl(var(--ll-text-secondary))" }}>Category</label>
+          <select className="ll-input" aria-label="Category" {...register("categoryId", { valueAsNumber: true })}>
+            {filteredCats.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+          </select>
+          {errors.categoryId && <p className="mt-0.5 text-xs" style={{ color: "hsl(var(--ll-expense))" }}>{errors.categoryId.message}</p>}
+        </div>
 
-        <input
-          className={`${inputStyle} ll-mono`} type="number" step="0.01" min="0.01" required
-          placeholder="Amount" value={amount} onChange={e => setAmount(e.target.value)}
-        />
-        <input
-          className={inputStyle} type="date" required
-          value={date} onChange={e => setDate(e.target.value)}
-        />
-        <input
-          className={inputStyle} placeholder="Note (optional)"
-          value={note} onChange={e => setNote(e.target.value)}
-        />
+        <div>
+          <label className="mb-1 block text-xs font-medium" style={{ color: "hsl(var(--ll-text-secondary))" }}>Amount</label>
+          <input className="ll-input ll-mono" type="number" step="0.01" min="0.01" placeholder="0.00" aria-label="Amount" {...register("amount", { valueAsNumber: true })} />
+          {errors.amount && <p className="mt-0.5 text-xs" style={{ color: "hsl(var(--ll-expense))" }}>{errors.amount.message}</p>}
+        </div>
 
-        {error && <p className="text-xs" style={{ color: "hsl(var(--ll-expense))" }}>{error}</p>}
+        <div>
+          <label className="mb-1 block text-xs font-medium" style={{ color: "hsl(var(--ll-text-secondary))" }}>Date</label>
+          <input className="ll-input" type="date" aria-label="Date" {...register("date")} />
+          {errors.date && <p className="mt-0.5 text-xs" style={{ color: "hsl(var(--ll-expense))" }}>{errors.date.message}</p>}
+        </div>
+
+        <div>
+          <label className="mb-1 block text-xs font-medium" style={{ color: "hsl(var(--ll-text-secondary))" }}>Note</label>
+          <input className="ll-input" placeholder="Optional note" aria-label="Note" {...register("note")} />
+        </div>
 
         <button
-          type="submit" disabled={saving}
+          type="submit" disabled={isSubmitting}
           className="flex w-full items-center justify-center rounded-lg py-2 text-sm font-medium text-white disabled:opacity-60"
           style={{ background: "hsl(var(--ll-accent))" }}
         >
-          {saving ? "Saving…" : "Add Transaction"}
+          {isSubmitting ? "Saving…" : "Add Transaction"}
         </button>
       </form>
     </Modal>

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import { Trash2 } from "lucide-react";
 import { formatCurrency, formatDate } from "@/shared/lib/formatters";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,7 @@ const signColor: Record<TransactionType, string> = {
 };
 const sign: Record<TransactionType, string> = { income: "+", expense: "-", transfer: "" };
 
-export function TransactionRow({
+export const TransactionRow = memo(function TransactionRow({
   tx,
   onDelete,
 }: {
@@ -71,4 +71,4 @@ export function TransactionRow({
       />
     </div>
   );
-}
+});

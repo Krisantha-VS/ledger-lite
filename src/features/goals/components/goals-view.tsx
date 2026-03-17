@@ -1,6 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { Plus, Flag } from "lucide-react";
 import { useGoals } from "@/features/goals/hooks/useGoals";
 import { useAccounts } from "@/features/accounts/hooks/useAccounts";
@@ -12,48 +15,58 @@ import type { Goal } from "@/shared/types";
 
 const COLOURS = ["#6366f1", "#22c55e", "#f59e0b", "#ec4899", "#14b8a6", "#f97316", "#a855f7"];
 
+const schema = z.object({
+  name:         z.string().min(1, "Name is required").max(100),
+  targetAmount: z.number().positive("Must be greater than 0"),
+  targetDate:   z.string().optional(),
+  accountId:    z.string().optional(),
+  colour:       z.string().length(7),
+});
+type FormData = z.infer<typeof schema>;
+
 export function GoalsView() {
   const { goals, loading, createGoal, updateGoal, deleteGoal } = useGoals();
   const { accounts } = useAccounts();
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing]     = useState<Goal | null>(null);
 
-  const [name, setName]         = useState("");
-  const [target, setTarget]     = useState("");
-  const [targetDate, setTargetDate] = useState("");
-  const [accountId, setAccountId]   = useState("");
-  const [colour, setColour]     = useState(COLOURS[0]);
-  const [saving, setSaving]     = useState(false);
-  const [error, setError]       = useState("");
+  const [open, setOpen]         = useState(false);
+  const [editGoal, setEditGoal] = useState<Goal | null>(null);
+
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
+    resolver: zodResolver(schema),
+    defaultValues: { name: "", targetAmount: undefined, targetDate: "", accountId: "", colour: COLOURS[0] },
+  });
+
+  const colour = watch("colour");
 
   const openNew = () => {
-    setEditing(null); setName(""); setTarget(""); setTargetDate("");
-    setAccountId(""); setColour(COLOURS[0]); setError("");
-    setModalOpen(true);
+    setEditGoal(null);
+    reset({ name: "", targetAmount: undefined, targetDate: "", accountId: "", colour: COLOURS[0] });
+    setOpen(true);
   };
 
   const openEdit = (g: Goal) => {
-    setEditing(g); setName(g.name); setTarget(String(g.targetAmount));
-    setTargetDate(g.targetDate ?? ""); setAccountId(g.accountId ? String(g.accountId) : "");
-    setColour(g.colour); setError("");
-    setModalOpen(true);
+    setEditGoal(g);
+    reset({
+      name:         g.name,
+      targetAmount: Number(g.targetAmount),
+      targetDate:   g.targetDate ?? "",
+      accountId:    g.accountId ? String(g.accountId) : "",
+      colour:       g.colour,
+    });
+    setOpen(true);
   };
 
-  const submit = async (e: React.FormEvent) => {
-    e.preventDefault(); setSaving(true); setError("");
-    try {
-      const payload = {
-        name, targetAmount: parseFloat(target),
-        targetDate: targetDate || null,
-        accountId: accountId ? parseInt(accountId) : null,
-        colour,
-      };
-      if (editing) await updateGoal(editing.id, payload);
-      else         await createGoal(payload);
-      setModalOpen(false);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save");
-    } finally { setSaving(false); }
+  const onSubmit = async (data: FormData) => {
+    const payload = {
+      name:         data.name,
+      targetAmount: data.targetAmount,
+      targetDate:   data.targetDate || null,
+      accountId:    data.accountId ? parseInt(data.accountId) : null,
+      colour:       data.colour,
+    };
+    if (editGoal) await updateGoal(editGoal.id, payload);
+    else          await createGoal(payload);
+    setOpen(false);
   };
 
   return (
@@ -67,6 +80,7 @@ export function GoalsView() {
           onClick={openNew}
           className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-white"
           style={{ background: "hsl(var(--ll-accent))" }}
+          aria-label="New goal"
         >
           <Plus className="h-3.5 w-3.5" />
           New Goal
@@ -92,8 +106,7 @@ export function GoalsView() {
         <div className="grid gap-3 sm:grid-cols-2">
           {goals.map(g => (
             <GoalCard
-              key={g.id}
-              goal={g}
+              key={g.id} goal={g}
               onDelete={deleteGoal}
               onEdit={openEdit}
               onComplete={id => updateGoal(id, { isCompleted: true })}
@@ -102,30 +115,52 @@ export function GoalsView() {
         </div>
       )}
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editing ? "Edit Goal" : "New Goal"} size="sm">
-        <form onSubmit={submit} className="space-y-3">
-          <input className="ll-input" placeholder="Goal name" required value={name} onChange={e => setName(e.target.value)} />
-          <input className="ll-input ll-mono" type="number" step="0.01" min="1" placeholder="Target amount" required value={target} onChange={e => setTarget(e.target.value)} />
-          <input className="ll-input" type="date" value={targetDate} onChange={e => setTargetDate(e.target.value)} />
-          <select className="ll-input" value={accountId} onChange={e => setAccountId(e.target.value)}>
-            <option value="">Link to account (optional)</option>
-            {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </select>
-          <div className="flex flex-wrap gap-2">
-            {COLOURS.map(c => (
-              <button key={c} type="button" onClick={() => setColour(c)}
-                className="h-6 w-6 rounded-full"
-                style={{ background: c, outline: colour === c ? `2px solid ${c}` : "none", outlineOffset: "2px" }}
-              />
-            ))}
+      <Modal open={open} onClose={() => setOpen(false)} title={editGoal ? "Edit Goal" : "New Goal"} size="sm">
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium" style={{ color: "hsl(var(--ll-text-secondary))" }}>Goal name</label>
+            <input className="ll-input" placeholder="e.g. Emergency Fund" aria-label="Goal name" {...register("name")} />
+            {errors.name && <p className="mt-0.5 text-xs" style={{ color: "hsl(var(--ll-expense))" }}>{errors.name.message}</p>}
           </div>
-          {error && <p className="text-xs" style={{ color: "hsl(var(--ll-expense))" }}>{error}</p>}
+
+          <div>
+            <label className="mb-1 block text-xs font-medium" style={{ color: "hsl(var(--ll-text-secondary))" }}>Target amount</label>
+            <input className="ll-input ll-mono" type="number" step="0.01" min="1" placeholder="0.00" aria-label="Target amount" {...register("targetAmount", { valueAsNumber: true })} />
+            {errors.targetAmount && <p className="mt-0.5 text-xs" style={{ color: "hsl(var(--ll-expense))" }}>{errors.targetAmount.message}</p>}
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium" style={{ color: "hsl(var(--ll-text-secondary))" }}>Target date (optional)</label>
+            <input className="ll-input" type="date" aria-label="Target date" {...register("targetDate")} />
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium" style={{ color: "hsl(var(--ll-text-secondary))" }}>Link to account (optional)</label>
+            <select className="ll-input" aria-label="Link to account" {...register("accountId")}>
+              <option value="">None</option>
+              {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+            </select>
+          </div>
+
+          <div>
+            <label className="mb-1 block text-xs font-medium" style={{ color: "hsl(var(--ll-text-secondary))" }}>Colour</label>
+            <div className="flex flex-wrap gap-2">
+              {COLOURS.map(c => (
+                <button key={c} type="button" aria-label={`Colour ${c}`}
+                  onClick={() => setValue("colour", c)}
+                  className="h-6 w-6 rounded-full transition-all"
+                  style={{ background: c, outline: colour === c ? `2px solid ${c}` : "none", outlineOffset: "2px" }}
+                />
+              ))}
+            </div>
+          </div>
+
           <button
-            type="submit" disabled={saving}
+            type="submit" disabled={isSubmitting}
             className="flex w-full items-center justify-center rounded-lg py-2 text-sm font-medium text-white disabled:opacity-60"
             style={{ background: "hsl(var(--ll-accent))" }}
           >
-            {saving ? "Saving…" : editing ? "Update" : "Create Goal"}
+            {isSubmitting ? "Saving…" : editGoal ? "Update" : "Create Goal"}
           </button>
         </form>
       </Modal>
