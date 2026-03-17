@@ -10,6 +10,7 @@ const SHORTCUTS = [
   { key: "T",   desc: "Go to transactions" },
   { key: "G",   desc: "Go to goals" },
   { key: "R",   desc: "Go to reports" },
+  { key: "S",   desc: "Go to settings" },
   { key: "?",   desc: "Show this help" },
   { key: "Esc", desc: "Close modal / dialog" },
 ];

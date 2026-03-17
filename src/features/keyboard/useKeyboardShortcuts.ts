@@ -39,6 +39,10 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers = {}) {
           e.preventDefault();
           router.push("/transactions");
           break;
+        case "s": // S = settings
+          e.preventDefault();
+          router.push("/settings");
+          break;
         case "h": // H = go home
           e.preventDefault();
           router.push("/");

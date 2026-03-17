@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { KpiCards } from "@/features/dashboard/components/kpi-cards";
 import { RecentTransactions } from "@/features/dashboard/components/recent-transactions";
+import { BudgetAlert } from "@/features/dashboard/components/budget-alert";
 
 export const metadata: Metadata = { title: "Dashboard · LedgerLite" };
 
@@ -15,6 +16,7 @@ export default function DashboardPage() {
           Your financial overview for this month
         </p>
       </div>
+      <BudgetAlert />
       <KpiCards />
       <RecentTransactions />
     </div>

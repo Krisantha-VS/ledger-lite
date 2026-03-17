@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Wallet, LayoutDashboard, ArrowUpDown, PiggyBank,
-  Target, BarChart3, ChevronRight,
+  Target, BarChart3, ChevronRight, Settings,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
@@ -15,6 +15,7 @@ const NAV = [
   { href: "/budgets",      label: "Budgets",      icon: PiggyBank },
   { href: "/goals",        label: "Goals",        icon: Target },
   { href: "/reports",      label: "Reports",      icon: BarChart3 },
+  { href: "/settings",     label: "Settings",     icon: Settings },
 ];
 
 export function Sidebar() {

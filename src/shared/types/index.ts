@@ -94,6 +94,16 @@ export interface CategoryBreakdown {
   percentage: number;
 }
 
+export interface UserSettings {
+  id:        number;
+  userId:    string;
+  currency:  string;
+  locale:    string;
+  theme:     "light" | "dark" | "system";
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ApiResponse<T> {
   success: boolean;
   data?:   T;
