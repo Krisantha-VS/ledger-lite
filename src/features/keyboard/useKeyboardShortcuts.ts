@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 interface ShortcutHandlers {
   onNewTransaction?: () => void;
   onNewAccount?:     () => void;
+  onShowHelp?:       () => void;
 }
 
 export function useKeyboardShortcuts(handlers: ShortcutHandlers = {}) {
@@ -41,6 +42,10 @@ export function useKeyboardShortcuts(handlers: ShortcutHandlers = {}) {
         case "h": // H = go home
           e.preventDefault();
           router.push("/");
+          break;
+        case "?": // ? = keyboard help
+          e.preventDefault();
+          handlers.onShowHelp?.();
           break;
       }
     };

@@ -1,16 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import { useTheme } from "next-themes";
 import { useRouter } from "next/navigation";
-import { Sun, Moon, LogOut, TrendingUp, TrendingDown } from "lucide-react";
+import { Sun, Moon, LogOut, TrendingUp, TrendingDown, Keyboard } from "lucide-react";
 import { clearTokens } from "@/shared/lib/auth-client";
 import { useDashboardSummary } from "@/features/summary/hooks/useSummary";
 import { formatCurrency } from "@/shared/lib/formatters";
+import { KeyboardShortcutsModal } from "@/components/ui/keyboard-shortcuts-modal";
 
 export function Header() {
   const { theme, setTheme } = useTheme();
   const router = useRouter();
   const { summary } = useDashboardSummary();
+  const [helpOpen, setHelpOpen] = useState(false);
 
   const logout = () => {
     clearTokens();
@@ -49,6 +52,17 @@ export function Header() {
 
       {/* Actions */}
       <div className="flex items-center gap-1">
+        {/* Keyboard shortcuts hint */}
+        <button
+          onClick={() => setHelpOpen(true)}
+          className="ll-focus-ring hidden rounded-lg p-2 transition-colors hover:bg-black/5 dark:hover:bg-white/5 lg:block"
+          style={{ color: "hsl(var(--ll-text-muted))" }}
+          aria-label="Keyboard shortcuts"
+          title="Keyboard shortcuts (?)"
+        >
+          <Keyboard className="h-4 w-4" />
+        </button>
+
         {/* Theme toggle */}
         <button
           onClick={toggleTheme}
@@ -71,6 +85,8 @@ export function Header() {
           <span className="hidden sm:inline">Sign out</span>
         </button>
       </div>
+
+      <KeyboardShortcutsModal open={helpOpen} onClose={() => setHelpOpen(false)} />
     </header>
   );
 }

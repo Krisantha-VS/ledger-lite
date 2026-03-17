@@ -3,10 +3,12 @@ import { Header } from "@/components/dashboard/header";
 import { MobileNav } from "@/components/dashboard/mobile-nav";
 import { AuthGuard } from "@/components/dashboard/auth-guard";
 import { ErrorBoundary } from "@/components/error-boundary";
+import { ShortcutsProvider } from "@/components/dashboard/shortcuts-provider";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
     <AuthGuard>
+      <ShortcutsProvider>
       <div className="flex h-screen overflow-hidden" style={{ background: "var(--ll-bg-base)" }}>
         {/* Desktop sidebar */}
         <div className="hidden lg:flex lg:shrink-0">
@@ -26,6 +28,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Mobile bottom nav */}
         <MobileNav />
       </div>
+      </ShortcutsProvider>
     </AuthGuard>
   );
 }
