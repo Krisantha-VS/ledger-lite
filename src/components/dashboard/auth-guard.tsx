@@ -17,9 +17,8 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
     const check = async () => {
       if (!getAccessToken()) {
-        // No access token — try a silent refresh before giving up.
         const refreshed = await refreshAccessToken();
-        if (!mounted.current) return; // unmounted while awaiting — bail
+        if (!mounted.current) return;
         if (!refreshed) {
           window.location.replace("/login");
           return;
