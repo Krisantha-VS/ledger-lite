@@ -40,6 +40,14 @@
   --chart-cat-3:   322 81% 58%;
   --chart-cat-4:   263 70% 50%;
   --chart-cat-5:   160 84% 34%;
+
+  /* ─── V2 Enterprise Tokens (Light) ─── */
+  --v2-bg: 210 40% 98%;
+  --v2-surface: 0 0% 100%;
+  --v2-border: 214 32% 91%;
+  --v2-text-primary: 222 47% 11%;
+  --v2-text-muted: 215 16% 47%;
+  --v2-accent: 221 83% 53%; /* Deep Bank Blue */
 }
 
 .dark {
@@ -75,6 +83,40 @@
   --chart-cat-3:   322 81% 64%;
   --chart-cat-4:   263 70% 50%;
   --chart-cat-5:   160 84% 39%;
+
+  /* ─── V2 Enterprise Tokens (Dark) ─── */
+  --v2-bg: 222 47% 4%;
+  --v2-surface: 222 47% 7%;
+  --v2-border: 217 33% 17%;
+  --v2-text-primary: 210 40% 98%;
+  --v2-text-muted: 215 20% 65%;
+  --v2-accent: 217 91% 60%;
+}
+
+/* ─── V2 Utilities ─── */
+.v2-card {
+  background: hsl(var(--v2-surface));
+  border: 1px solid hsl(var(--v2-border));
+  border-radius: 0.5rem;
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+.v2-sidebar-item {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.v2-sidebar-item:hover {
+  background: hsl(var(--v2-accent) / 0.05);
+  color: hsl(var(--v2-accent));
+}
+
+.v2-badge {
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
 }
 
 /* ─── Tailwind theme bridge ───────────────────────────── */
