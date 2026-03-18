@@ -41,3 +41,18 @@ export function useCategoryBreakdown(month?: string) {
   });
   return { rows, loading };
 }
+
+export interface NetWorthSummary {
+  netWorth:         number;
+  totalAssets:      number;
+  totalLiabilities: number;
+}
+
+export function useNetWorth() {
+  const { data, isLoading: loading } = useQuery<NetWorthSummary>({
+    queryKey: ["summary", "networth"],
+    queryFn:  () => fetchSummary("networth"),
+    staleTime: 30_000,
+  });
+  return { data: data ?? null, loading };
+}

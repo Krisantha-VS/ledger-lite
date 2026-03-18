@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -14,9 +15,36 @@ const CHART_COLORS = [
   "hsl(262 83% 58%)", "hsl(0 84% 60%)",
 ];
 
+type RangeOption = { label: string; months: number; ytd?: boolean };
+
+const RANGE_OPTIONS: RangeOption[] = [
+  { label: "Last 3 months",  months: 3 },
+  { label: "Last 6 months",  months: 6 },
+  { label: "Last 12 months", months: 12 },
+  { label: "Year to date",   months: 0, ytd: true },
+];
+
+/** Returns the YYYY-MM string for the last month in the selected range. */
+function rangeEndMonth(opt: RangeOption): string {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}
+
+/** Compute the actual months count to pass to the API for YTD. */
+function resolvedMonths(opt: RangeOption): number {
+  if (!opt.ytd) return opt.months;
+  const now = new Date();
+  return now.getMonth() + 1; // months elapsed since Jan (1-indexed)
+}
+
 export function ReportsView() {
-  const { rows: monthly, loading: mLoading } = useMonthlySummary(6);
-  const { rows: cats,    loading: cLoading }  = useCategoryBreakdown();
+  const [range, setRange] = useState<RangeOption>(RANGE_OPTIONS[1]); // default: Last 6 months
+
+  const months = resolvedMonths(range);
+  const catMonth = rangeEndMonth(range);
+
+  const { rows: monthly, loading: mLoading } = useMonthlySummary(months);
+  const { rows: cats,    loading: cLoading }  = useCategoryBreakdown(catMonth);
 
   const chartData = monthly.map(r => ({
     month:    formatMonth(r.month),
@@ -25,11 +53,36 @@ export function ReportsView() {
     net:      r.net,
   }));
 
+  const subtitleLabel = range.ytd
+    ? `Jan – ${formatMonth(catMonth)}`
+    : range.label.toLowerCase();
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-lg font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>Reports</h1>
-        <p className="text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>6-month overview</p>
+        <p className="text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>{subtitleLabel}</p>
+      </div>
+
+      {/* Date range pill selector */}
+      <div className="flex flex-wrap gap-2">
+        {RANGE_OPTIONS.map(opt => {
+          const active = opt.label === range.label;
+          return (
+            <button
+              key={opt.label}
+              onClick={() => setRange(opt)}
+              className="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+              style={{
+                background: active ? "hsl(var(--ll-accent))" : "hsl(var(--ll-bg-surface))",
+                color:      active ? "hsl(var(--ll-accent-fg))" : "hsl(var(--ll-text-muted))",
+                border:     `1px solid ${active ? "hsl(var(--ll-accent))" : "hsl(var(--ll-border))"}`,
+              }}
+            >
+              {opt.label}
+            </button>
+          );
+        })}
       </div>
 
       {/* Income vs Expenses area chart */}
@@ -94,15 +147,15 @@ export function ReportsView() {
         )}
       </div>
 
-      {/* Category breakdown */}
+      {/* Category breakdown — last month of selected range */}
       <div className="ll-card p-4">
         <p className="mb-4 text-sm font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
-          Spending by Category (This Month)
+          Spending by Category ({formatMonth(catMonth)})
         </p>
         {cLoading ? (
           <Skeleton className="h-52 w-full" />
         ) : cats.length === 0 ? (
-          <p className="py-8 text-center text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>No expense data this month</p>
+          <p className="py-8 text-center text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>No expense data for {formatMonth(catMonth)}</p>
         ) : (
           <div className="flex flex-col items-center gap-4 sm:flex-row">
             <ResponsiveContainer width={180} height={180}>

@@ -1,22 +1,30 @@
 "use client";
 
-import { TrendingUp, TrendingDown, DollarSign, AlertTriangle } from "lucide-react";
-import { useDashboardSummary } from "@/features/summary/hooks/useSummary";
+import { TrendingUp, TrendingDown, DollarSign, AlertTriangle, Landmark } from "lucide-react";
+import { useDashboardSummary, useNetWorth } from "@/features/summary/hooks/useSummary";
 import { formatCurrency } from "@/shared/lib/formatters";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function KpiCards() {
-  const { summary, loading } = useDashboardSummary();
+  const { summary, loading }           = useDashboardSummary();
+  const { data: netWorthData, loading: nwLoading } = useNetWorth();
 
-  if (loading) {
+  if (loading || nwLoading) {
     return (
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+        {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
       </div>
     );
   }
 
   const cards = [
+    {
+      label: "Net Worth",
+      value: formatCurrency(netWorthData?.netWorth ?? 0),
+      icon: Landmark,
+      color: "hsl(239 84% 67%)",
+      bg: "hsl(239 84% 67% / 0.10)",
+    },
     {
       label: "Income",
       value: formatCurrency(summary?.monthIncome ?? 0),
@@ -48,7 +56,7 @@ export function KpiCards() {
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
       {cards.map(c => (
         <div key={c.label} className="ll-card flex items-center gap-3 p-4">
           <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg" style={{ background: c.bg }}>

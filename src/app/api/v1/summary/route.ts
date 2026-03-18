@@ -10,8 +10,9 @@ export async function GET(req: Request) {
     if (type === "monthly")    return ok(await monthlySummary(userId, parseInt(url.searchParams.get("months") ?? "12")));
     if (type === "categories") return ok(await categoryBreakdown(userId, url.searchParams.get("month") ?? undefined));
     if (type === "dashboard")  return ok(await dashboardSummary(userId));
+    if (type === "networth")   return ok(await netWorthSummary(userId));
 
-    return fail("type must be monthly | categories | dashboard");
+    return fail("type must be monthly | categories | dashboard | networth");
   } catch (e) { return handleError(e); }
 }
 
@@ -80,5 +81,27 @@ async function dashboardSummary(userId: string) {
     monthExpenses:   monthData?.expenses ?? 0,
     monthNet:        (monthData?.income ?? 0) - (monthData?.expenses ?? 0),
     budgetsOverLimit: budgetsOverLimit[0]?.count ?? 0,
+  };
+}
+
+async function netWorthSummary(userId: string) {
+  // Sum of all non-archived account balances:
+  //   startingBalance + income - expenses - transfers_out + transfers_in
+  type Row = { netWorth: number };
+  const [row] = await db.$queryRaw<Row[]>`
+    SELECT COALESCE(SUM(
+      a."startingBalance"
+      + COALESCE((SELECT SUM(CASE WHEN t.type='income'   THEN t.amount ELSE 0 END) FROM "Transaction" t WHERE t."accountId"=a.id AND t."userId"=${userId}), 0)
+      - COALESCE((SELECT SUM(CASE WHEN t.type='expense'  THEN t.amount ELSE 0 END) FROM "Transaction" t WHERE t."accountId"=a.id AND t."userId"=${userId}), 0)
+      - COALESCE((SELECT SUM(CASE WHEN t.type='transfer' THEN t.amount ELSE 0 END) FROM "Transaction" t WHERE t."accountId"=a.id AND t."userId"=${userId}), 0)
+      + COALESCE((SELECT SUM(t2.amount) FROM "Transaction" t2 WHERE t2."transferToId"=a.id AND t2."userId"=${userId}), 0)
+    ), 0)::float AS "netWorth"
+    FROM "Account" a
+    WHERE a."userId"=${userId} AND a."isArchived"=false
+  `;
+  return {
+    netWorth:        row?.netWorth ?? 0,
+    totalAssets:     row?.netWorth ?? 0,
+    totalLiabilities: 0,
   };
 }
