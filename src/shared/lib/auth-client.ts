@@ -41,8 +41,16 @@ export async function refreshAccessToken(): Promise<string | null> {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refreshToken, clientId: AUTH_CLIENT_ID }),
       });
+      // Only treat 401/403 as a definitive "token invalid" signal.
+      // 5xx or network errors should not log the user out.
+      if (res.status === 401 || res.status === 403) {
+        window.dispatchEvent(new Event("auth:expired"));
+        clearTokens();
+        return null;
+      }
+      if (!res.ok) return null; // temporary server error — keep tokens, let caller handle
       const json = await res.json();
-      if (!res.ok || !json.success) {
+      if (!json.success) {
         window.dispatchEvent(new Event("auth:expired"));
         clearTokens();
         return null;
@@ -51,8 +59,8 @@ export async function refreshAccessToken(): Promise<string | null> {
       storeTokens(accessToken, newRefresh ?? refreshToken);
       return accessToken as string;
     } catch {
-      window.dispatchEvent(new Event("auth:expired"));
-      clearTokens();
+      // Network error — do not clear tokens or fire auth:expired.
+      // The user is still "logged in"; they just have no connectivity right now.
       return null;
     } finally {
       _refreshPromise = null;
