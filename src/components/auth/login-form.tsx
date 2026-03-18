@@ -2,13 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { Wallet, Lock } from "lucide-react";
 import { AUTH_CLIENT_ID } from "@/shared/config";
 import { storeTokens } from "@/shared/lib/auth-client";
 
 export function LoginForm() {
-  const router = useRouter();
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading]   = useState(false);
@@ -26,7 +24,10 @@ export function LoginForm() {
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Login failed");
       storeTokens(json.data.accessToken, json.data.refreshToken);
-      router.push("/");
+      // Hard redirect so the dashboard starts with a clean React tree
+      // and tokens are guaranteed to be in localStorage before any
+      // component mounts and reads them.
+      window.location.href = "/";
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed");
     } finally { setLoading(false); }

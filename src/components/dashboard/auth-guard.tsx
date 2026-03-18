@@ -1,34 +1,39 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getAccessToken, refreshAccessToken } from "@/shared/lib/auth-client";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
-  // Start as "checking" to avoid a flash of content or premature redirect
-  // before we know whether the session is valid.
   const [ready, setReady] = useState(false);
+  const mounted = useRef(true);
 
   useEffect(() => {
+    mounted.current = true;
+
+    // Hard redirect when refresh token expires mid-session.
+    // Registered here so cleanup works correctly via useEffect return.
+    const onExpired = () => window.location.replace("/login");
+    window.addEventListener("auth:expired", onExpired);
+
     const check = async () => {
       if (!getAccessToken()) {
-        // No token at all — try a silent refresh in case only the access
-        // token was cleared but the refresh token is still valid.
+        // No access token — try a silent refresh before giving up.
         const refreshed = await refreshAccessToken();
+        if (!mounted.current) return; // unmounted while awaiting — bail
         if (!refreshed) {
           window.location.replace("/login");
           return;
         }
       }
-      setReady(true);
-
-      // Hard redirect when refresh token expires mid-session
-      const onExpired = () => window.location.replace("/login");
-      window.addEventListener("auth:expired", onExpired);
-      // Cleanup is handled when the component unmounts (user navigates away)
-      return () => window.removeEventListener("auth:expired", onExpired);
+      if (mounted.current) setReady(true);
     };
 
     check();
+
+    return () => {
+      mounted.current = false;
+      window.removeEventListener("auth:expired", onExpired);
+    };
   }, []);
 
   if (!ready) return null;
