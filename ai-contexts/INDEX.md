@@ -12,12 +12,15 @@
 | Phase | Feature | Status |
 |-------|---------|--------|
 | P0 | Standalone scaffold (Next.js, Prisma, design system, auth pages, dashboard shell) | ✅ done |
-| P1 | Accounts + Categories CRUD, transaction list, live balances | ⬜ pending |
-| P2 | Charts, budgets, dashboard KPIs | ⬜ pending |
-| P3 | Goals, CSV export, recurring transactions, mobile | ⬜ pending |
-| P4 | Demo seed, PWA manifest, keyboard shortcuts | ⬜ pending |
+| P1 | Accounts + Categories CRUD, transaction list, live balances | ✅ done |
+| P2 | Charts, budgets, dashboard KPIs | ✅ done |
+| P3 | Goals, CSV export, recurring transactions, mobile | ✅ done |
+| P4 | Demo seed, PWA manifest, keyboard shortcuts | ✅ done |
+| P5 | Transaction editing, category management UI, CSV import, recurring UI, net worth KPI, date range reports, danger zone | ✅ done |
 
-**Progress: 1 / 5 phases**
+**Progress: 6 / 6 phases — COMPLETE**
+
+**Production:** https://ledger-lite-mu.vercel.app
 
 ## Stack
 - Next.js 16.1.6, React 19, TypeScript 5
