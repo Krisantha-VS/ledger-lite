@@ -84,10 +84,14 @@ export async function authFetch(
 
   const res = await fetch(url, { ...options, headers });
 
+  // Only attempt a token refresh once per authFetch call.
+  // Multiple concurrent 401s share the refresh mutex so only one
+  // refresh request ever hits AuthSaas — preventing TOKEN_REUSE.
   if (res.status === 401) {
     const newToken = await refreshAccessToken();
     if (newToken) {
       headers.set("Authorization", `Bearer ${newToken}`);
+      // Retry once with the fresh token — no further refresh on failure
       return fetch(url, { ...options, headers });
     }
   }
