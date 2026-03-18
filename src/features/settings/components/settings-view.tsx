@@ -1,14 +1,17 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useTheme } from "next-themes";
-import { Settings, Download } from "lucide-react";
+import { Settings, Download, Trash2 } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { useSettings } from "@/features/settings/hooks/useSettings";
 import { authFetch } from "@/shared/lib/auth-client";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 
 const CURRENCIES = [
   { code: "USD", label: "USD — US Dollar" },
@@ -41,6 +44,9 @@ type FormData = z.infer<typeof schema>;
 export function SettingsView() {
   const { settings, loading, updateSettings, isSaving } = useSettings();
   const { setTheme } = useTheme();
+  const qc = useQueryClient();
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const { register, handleSubmit, reset, formState: { isDirty } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -55,6 +61,23 @@ export function SettingsView() {
     await updateSettings(data);
     setTheme(data.theme); // sync next-themes immediately
     reset(data);
+  };
+
+  const handleDeleteAllData = async () => {
+    setIsDeleting(true);
+    try {
+      const res  = await authFetch("/api/v1/user", { method: "DELETE" });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error ?? "Delete failed");
+      // Invalidate all cached data
+      await qc.invalidateQueries();
+      toast.success("All data deleted successfully");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to delete data");
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirm(false);
+    }
   };
 
   const exportCSV = async () => {
@@ -149,10 +172,34 @@ export function SettingsView() {
       {/* Danger zone */}
       <div className="ll-card p-5" style={{ borderColor: "hsl(var(--ll-expense) / 0.3)" }}>
         <h2 className="mb-1 text-sm font-semibold text-rose-400">Danger zone</h2>
-        <p className="text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>
-          Account deletion and data wipe coming in a future update.
+        <p className="mb-4 text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>
+          Deletes all transactions, accounts, budgets, and goals.
+          Your login credentials are not affected.
         </p>
+        <button
+          onClick={() => setShowDeleteConfirm(true)}
+          className="flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium transition-colors hover:opacity-90"
+          style={{
+            background: "hsl(var(--ll-expense) / 0.1)",
+            color: "hsl(var(--ll-expense))",
+            border: "1px solid hsl(var(--ll-expense) / 0.3)",
+          }}
+        >
+          <Trash2 className="h-4 w-4" />
+          Delete all data
+        </button>
       </div>
+
+      <ConfirmDialog
+        open={showDeleteConfirm}
+        onClose={() => setShowDeleteConfirm(false)}
+        onConfirm={handleDeleteAllData}
+        title="Delete all financial data?"
+        description="This will permanently delete all your transactions, accounts, budgets, and goals. This action cannot be undone."
+        confirmLabel="Delete all data"
+        loading={isDeleting}
+        variant="danger"
+      />
     </div>
   );
 }

@@ -3,10 +3,13 @@ import { ok, notFound, handleError, getUserId } from "@/lib/api";
 import { z } from "zod";
 
 const UpdateSchema = z.object({
-  amount:     z.number().positive().optional(),
-  date:       z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
-  note:       z.string().max(300).nullable().optional(),
-  categoryId: z.number().int().positive().optional(),
+  amount:      z.number().positive().optional(),
+  date:        z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  note:        z.string().max(300).nullable().optional(),
+  categoryId:  z.number().int().positive().optional(),
+  isRecurring: z.boolean().optional(),
+  recurrence:  z.enum(["weekly", "monthly"]).nullable().optional(),
+  nextDue:     z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullable().optional(),
 });
 
 export async function PATCH(req: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -20,6 +23,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ id: st
 
     const data: Record<string, unknown> = { ...body };
     if (body.date) data.date = new Date(body.date + "T00:00:00Z");
+    if (body.nextDue !== undefined) data.nextDue = body.nextDue ? new Date(body.nextDue + "T00:00:00Z") : null;
 
     return ok(await db.transaction.update({ where: { id }, data }));
   } catch (e) { return handleError(e); }

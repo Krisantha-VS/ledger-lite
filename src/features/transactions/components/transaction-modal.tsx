@@ -7,6 +7,7 @@ import { z } from "zod";
 import { Modal } from "@/components/ui/modal";
 import { useAccounts } from "@/features/accounts/hooks/useAccounts";
 import { useCategories } from "@/features/categories/hooks/useCategories";
+import type { Transaction } from "@/shared/types";
 
 const schema = z.object({
   type:         z.enum(["expense", "income", "transfer"]),
@@ -16,6 +17,9 @@ const schema = z.object({
   date:         z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Invalid date"),
   note:         z.string().max(300).optional(),
   transferToId: z.number().int().positive().optional(),
+  isRecurring:  z.boolean().optional(),
+  recurrence:   z.enum(["weekly", "monthly"]).optional(),
+  nextDue:      z.string().optional(),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -23,22 +27,25 @@ interface Props {
   open: boolean;
   onClose: () => void;
   onSave: (payload: FormData) => Promise<void>;
+  initial?: Transaction;
 }
 
-export function TransactionModal({ open, onClose, onSave }: Props) {
+export function TransactionModal({ open, onClose, onSave, initial }: Props) {
   const { accounts }   = useAccounts();
   const { categories } = useCategories();
 
   const { register, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
-      type: "expense",
-      date: new Date().toISOString().slice(0, 10),
+      type:        "expense",
+      date:        new Date().toISOString().slice(0, 10),
+      isRecurring: false,
     },
   });
 
-  const type      = watch("type");
-  const accountId = watch("accountId");
+  const type        = watch("type");
+  const accountId   = watch("accountId");
+  const isRecurring = watch("isRecurring");
 
   const filteredCats = categories.filter(c =>
     type === "income"  ? c.type !== "expense" :
@@ -47,23 +54,44 @@ export function TransactionModal({ open, onClose, onSave }: Props) {
 
   useEffect(() => {
     if (!open) return;
-    reset({
-      type:       "expense",
-      accountId:  accounts[0]?.id,
-      categoryId: categories.find(c => c.type !== "income")?.id,
-      amount:     undefined,
-      date:       new Date().toISOString().slice(0, 10),
-      note:       "",
-    });
-  }, [open, accounts, categories, reset]);
+    if (initial) {
+      // Pre-populate with existing transaction values
+      reset({
+        type:         initial.type,
+        accountId:    initial.accountId,
+        categoryId:   initial.categoryId,
+        amount:       initial.amount,
+        date:         initial.date.slice(0, 10),
+        note:         initial.note ?? "",
+        transferToId: initial.transferToId ?? undefined,
+        isRecurring:  initial.isRecurring,
+        recurrence:   initial.recurrence ?? undefined,
+        nextDue:      initial.nextDue ? initial.nextDue.slice(0, 10) : undefined,
+      });
+    } else {
+      reset({
+        type:         "expense",
+        accountId:    accounts[0]?.id,
+        categoryId:   categories.find(c => c.type !== "income")?.id,
+        amount:       undefined,
+        date:         new Date().toISOString().slice(0, 10),
+        note:         "",
+        isRecurring:  false,
+        recurrence:   undefined,
+        nextDue:      undefined,
+      });
+    }
+  }, [open, initial, accounts, categories, reset]);
 
   const onSubmit = async (data: FormData) => {
-    await onSave(data);
+    await onSave({ ...data, isRecurring: data.isRecurring ?? false });
     onClose();
   };
 
+  const isEditing = !!initial;
+
   return (
-    <Modal open={open} onClose={onClose} title="New Transaction" size="md">
+    <Modal open={open} onClose={onClose} title={isEditing ? "Edit Transaction" : "New Transaction"} size="md">
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
 
         {/* Type tabs */}
@@ -132,12 +160,42 @@ export function TransactionModal({ open, onClose, onSave }: Props) {
           <input className="ll-input" placeholder="Optional note" aria-label="Note" {...register("note")} />
         </div>
 
+        {/* Recurring */}
+        <div className="rounded-lg border p-3 space-y-2.5" style={{ borderColor: "hsl(var(--ll-border))" }}>
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              className="h-3.5 w-3.5 rounded accent-[hsl(var(--ll-accent))]"
+              {...register("isRecurring")}
+            />
+            <span className="text-xs font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
+              Recurring transaction
+            </span>
+          </label>
+
+          {isRecurring && (
+            <div className="grid grid-cols-2 gap-2 pl-5">
+              <div>
+                <label className="mb-1 block text-[11px]" style={{ color: "hsl(var(--ll-text-secondary))" }}>Frequency</label>
+                <select className="ll-input text-xs" aria-label="Recurrence frequency" {...register("recurrence")}>
+                  <option value="weekly">Weekly</option>
+                  <option value="monthly">Monthly</option>
+                </select>
+              </div>
+              <div>
+                <label className="mb-1 block text-[11px]" style={{ color: "hsl(var(--ll-text-secondary))" }}>Next due</label>
+                <input className="ll-input text-xs" type="date" aria-label="Next due date" {...register("nextDue")} />
+              </div>
+            </div>
+          )}
+        </div>
+
         <button
           type="submit" disabled={isSubmitting}
           className="flex w-full items-center justify-center rounded-lg py-2 text-sm font-medium text-white disabled:opacity-60"
           style={{ background: "hsl(var(--ll-accent))" }}
         >
-          {isSubmitting ? "Saving…" : "Add Transaction"}
+          {isSubmitting ? "Saving…" : isEditing ? "Save changes" : "Add Transaction"}
         </button>
       </form>
     </Modal>

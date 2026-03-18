@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, memo } from "react";
-import { Trash2 } from "lucide-react";
+import { Trash2, Pencil } from "lucide-react";
 import { formatCurrency, formatDate } from "@/shared/lib/formatters";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -17,9 +17,11 @@ const sign: Record<TransactionType, string> = { income: "+", expense: "-", trans
 export const TransactionRow = memo(function TransactionRow({
   tx,
   onDelete,
+  onEdit,
 }: {
   tx: Transaction;
   onDelete: (id: number) => void;
+  onEdit: (tx: Transaction) => void;
 }) {
   const [confirm, setConfirm] = useState(false);
 
@@ -54,8 +56,17 @@ export const TransactionRow = memo(function TransactionRow({
       </span>
 
       <button
+        onClick={() => onEdit(tx)}
+        className="ml-1 rounded p-1 opacity-0 transition-all group-hover:opacity-100 hover:bg-white/10"
+        style={{ color: "hsl(var(--ll-text-muted))" }}
+        aria-label="Edit"
+      >
+        <Pencil className="h-3.5 w-3.5" />
+      </button>
+
+      <button
         onClick={() => setConfirm(true)}
-        className="ml-1 rounded p-1 opacity-0 transition-all group-hover:opacity-100 hover:bg-rose-500/10"
+        className="rounded p-1 opacity-0 transition-all group-hover:opacity-100 hover:bg-rose-500/10"
         style={{ color: "hsl(var(--ll-text-muted))" }}
         aria-label="Delete"
       >

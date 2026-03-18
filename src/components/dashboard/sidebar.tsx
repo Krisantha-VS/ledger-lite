@@ -4,15 +4,17 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Wallet, LayoutDashboard, ArrowUpDown, PiggyBank,
-  Target, BarChart3, ChevronRight, Settings,
+  Target, BarChart3, ChevronRight, Settings, Tag, Upload,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
 const NAV = [
   { href: "/",             label: "Dashboard",    icon: LayoutDashboard },
   { href: "/transactions", label: "Transactions", icon: ArrowUpDown },
+  { href: "/import",       label: "Import",       icon: Upload },
   { href: "/accounts",     label: "Accounts",     icon: Wallet },
   { href: "/budgets",      label: "Budgets",      icon: PiggyBank },
+  { href: "/categories",   label: "Categories",   icon: Tag },
   { href: "/goals",        label: "Goals",        icon: Target },
   { href: "/reports",      label: "Reports",      icon: BarChart3 },
   { href: "/settings",     label: "Settings",     icon: Settings },

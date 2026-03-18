@@ -8,17 +8,19 @@ import { TransactionModal } from "./transaction-modal";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { useKeyboardShortcuts } from "@/features/keyboard/useKeyboardShortcuts";
+import type { Transaction } from "@/shared/types";
 
 const TYPES = ["all", "income", "expense", "transfer"];
 
 export function TransactionsView() {
   const [page, setPage]     = useState(1);
   const [filter, setFilter] = useState("");
-  const [modalOpen, setModalOpen] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
+  const [editTx, setEditTx]         = useState<Transaction | null>(null);
 
-  useKeyboardShortcuts({ onNewTransaction: () => setModalOpen(true) });
+  useKeyboardShortcuts({ onNewTransaction: () => setShowCreate(true) });
 
-  const { transactions, total, loading, createTransaction, deleteTransaction } = useTransactions({
+  const { transactions, total, loading, createTransaction, updateTransaction, deleteTransaction } = useTransactions({
     page, perPage: 20, type: filter || undefined,
   });
 
@@ -32,7 +34,7 @@ export function TransactionsView() {
           <p className="text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>{total} total</p>
         </div>
         <button
-          onClick={() => setModalOpen(true)}
+          onClick={() => setShowCreate(true)}
           className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-white transition-all active:scale-95"
           style={{ background: "hsl(var(--ll-accent))" }}
         >
@@ -74,7 +76,7 @@ export function TransactionsView() {
             : transactions.length === 0
               ? <EmptyState icon={ArrowRightLeft} title="No transactions" description="Add your first transaction" />
               : transactions.map(tx => (
-                  <TransactionRow key={tx.id} tx={tx} onDelete={deleteTransaction} />
+                  <TransactionRow key={tx.id} tx={tx} onDelete={deleteTransaction} onEdit={setEditTx} />
                 ))
           }
         </div>
@@ -108,9 +110,16 @@ export function TransactionsView() {
       </div>
 
       <TransactionModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        onSave={async (p) => { await createTransaction(p); }}
+        open={!!editTx || showCreate}
+        onClose={() => { setEditTx(null); setShowCreate(false); }}
+        initial={editTx ?? undefined}
+        onSave={async (p) => {
+          if (editTx) {
+            await updateTransaction({ id: editTx.id, data: p });
+          } else {
+            await createTransaction(p);
+          }
+        }}
       />
     </div>
   );
