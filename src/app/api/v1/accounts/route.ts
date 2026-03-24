@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { ok, fail, handleError, getUserId } from "@/lib/api";
 import { DEFAULT_CATEGORIES } from "@/lib/categories";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 const CreateSchema = z.object({
@@ -49,6 +50,8 @@ export async function getAccountsWithBalance(userId: string, id?: number) {
     isArchived: boolean; createdAt: Date; balance: number;
   };
 
+  const idFilter = id !== undefined ? Prisma.sql`AND a.id = ${id}` : Prisma.empty;
+
   const rows = await db.$queryRaw<Row[]>`
     SELECT a.*,
       (a."startingBalance"
@@ -64,7 +67,7 @@ export async function getAccountsWithBalance(userId: string, id?: number) {
     LEFT JOIN "Transaction" t ON t."accountId" = a.id
     WHERE a."userId" = ${userId}
       AND a."isArchived" = false
-      ${id ? db.$queryRaw`AND a.id = ${id}` : db.$queryRaw``}
+      ${idFilter}
     GROUP BY a.id
     ORDER BY a."createdAt" ASC
   `;
