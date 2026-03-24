@@ -13,7 +13,7 @@ export async function verifyJWT(
     if (!payload.sub) throw new AuthError("Invalid token: missing sub");
     return payload as { sub: string; name?: string; email?: string };
   } catch (e) {
-    if (e instanceof joseErrors.JWTExpired) throw new AuthError("Token expired");
+if (e instanceof joseErrors.JWTExpired) throw new AuthError("Token expired");
     if (e instanceof joseErrors.JWTInvalid) throw new AuthError("Invalid token");
     throw e instanceof AuthError ? e : new AuthError("Unauthorized");
   }

@@ -20,6 +20,11 @@
 
 **Progress: 6 / 6 phases — COMPLETE**
 
+## Bug Fix (2026-03-22)
+- **Login loop** — `json.data.accessToken` was undefined; AuthSaas wraps tokens under `json.data.tokens.accessToken`.
+  Fix: `login-form.tsx` and `auth-client.ts` now read `json.data.tokens ?? json.data` before destructuring.
+  Files: `src/components/auth/login-form.tsx`, `src/shared/lib/auth-client.ts`
+
 **Production:** https://ledger-lite-mu.vercel.app
 
 ## Stack

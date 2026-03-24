@@ -23,7 +23,8 @@ export function LoginForm() {
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Login failed");
-      storeTokens(json.data.accessToken, json.data.refreshToken);
+      const tokens = json.data.tokens ?? json.data;
+      storeTokens(tokens.accessToken, tokens.refreshToken);
       // Hard redirect so the dashboard starts with a clean React tree
       // and tokens are guaranteed to be in localStorage before any
       // component mounts and reads them.

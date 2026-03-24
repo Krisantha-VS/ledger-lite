@@ -55,7 +55,8 @@ export async function refreshAccessToken(): Promise<string | null> {
         clearTokens();
         return null;
       }
-      const { accessToken, refreshToken: newRefresh } = json.data;
+      const tokenData = json.data.tokens ?? json.data;
+      const { accessToken, refreshToken: newRefresh } = tokenData;
       storeTokens(accessToken, newRefresh ?? refreshToken);
       return accessToken as string;
     } catch {
