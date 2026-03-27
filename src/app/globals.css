@@ -41,13 +41,13 @@
   --chart-cat-4:   263 70% 50%;
   --chart-cat-5:   160 84% 34%;
 
-  /* ─── V2 Enterprise Tokens (Light) ─── */
-  --v2-bg: 210 40% 98%;
+  /* ─── V2 Enterprise Tokens (Light) — aliased to ll-* for consistency ─── */
+  --v2-bg: 248 30% 98%;
   --v2-surface: 0 0% 100%;
-  --v2-border: 214 32% 91%;
+  --v2-border: 220 20% 78%;
   --v2-text-primary: 222 47% 11%;
-  --v2-text-muted: 215 16% 47%;
-  --v2-accent: 221 83% 53%; /* Deep Bank Blue */
+  --v2-text-muted: 215 16% 35%;
+  --v2-accent: 239 84% 67%;
 }
 
 .dark {
@@ -84,21 +84,21 @@
   --chart-cat-4:   263 70% 50%;
   --chart-cat-5:   160 84% 39%;
 
-  /* ─── V2 Enterprise Tokens (Dark) ─── */
-  --v2-bg: 222 47% 4%;
-  --v2-surface: 222 47% 7%;
-  --v2-border: 217 33% 17%;
-  --v2-text-primary: 210 40% 98%;
-  --v2-text-muted: 215 20% 65%;
-  --v2-accent: 217 91% 60%;
+  /* ─── V2 Enterprise Tokens (Dark) — aliased to ll-* for consistency ─── */
+  --v2-bg: 250 25% 7%;
+  --v2-surface: 250 22% 10%;
+  --v2-border: 220 26% 14%;
+  --v2-text-primary: 248 87% 97%;
+  --v2-text-muted: 215 14% 40%;
+  --v2-accent: 239 84% 67%;
 }
 
 /* ─── V2 Utilities ─── */
 .v2-card {
   background: hsl(var(--v2-surface));
   border: 1px solid hsl(var(--v2-border));
-  border-radius: 0.5rem;
-  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06);
 }
 
 .v2-sidebar-item {
@@ -160,6 +160,7 @@ body {
   background: var(--ll-bg-surface);
   border: 1px solid hsl(var(--ll-border));
   border-radius: 0.75rem;
+  box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.06);
 }
 
 .ll-card-hover {

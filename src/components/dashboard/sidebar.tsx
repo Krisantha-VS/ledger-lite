@@ -25,16 +25,11 @@ export function Sidebar() {
 
   return (
     <aside
-      className="flex h-full w-64 flex-col"
-      style={{
-        background: "var(--ll-bg-surface)",
-        borderRight: "1px solid hsl(var(--ll-border))",
-      }}
+      className="flex h-full w-64 flex-col bg-[var(--ll-bg-surface)] border-r border-[hsl(var(--ll-border))]"
     >
       {/* Logo */}
       <div
-        className="flex h-14 items-center gap-2.5 px-5"
-        style={{ borderBottom: "1px solid hsl(var(--ll-border))" }}
+        className="flex h-14 items-center gap-2.5 px-5 border-b border-[hsl(var(--ll-border))]"
       >
         <div
           className="flex h-7 w-7 items-center justify-center rounded-lg"
@@ -82,7 +77,7 @@ export function Sidebar() {
       </nav>
 
       {/* Bottom: version badge */}
-      <div className="p-4" style={{ borderTop: "1px solid hsl(var(--ll-border))" }}>
+      <div className="p-4 border-t border-[hsl(var(--ll-border))]">
         <div className="flex items-center gap-2">
           <div
             className="h-1.5 w-1.5 rounded-full"
