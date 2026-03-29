@@ -73,11 +73,18 @@ export function LoginForm() {
               value={email} onChange={e => setEmail(e.target.value)}
               className="ll-input"
             />
-            <input
-              type="password" placeholder="Password" required autoComplete="current-password"
-              value={password} onChange={e => setPassword(e.target.value)}
-              className="ll-input"
-            />
+            <div>
+              <input
+                type="password" placeholder="Password" required autoComplete="current-password"
+                value={password} onChange={e => setPassword(e.target.value)}
+                className="ll-input"
+              />
+              <div className="mt-1 text-right">
+                <Link href="/forgot-password" className="text-[11px] transition-colors hover:text-white" style={{ color: "hsl(var(--ll-text-muted))" }}>
+                  Forgot password?
+                </Link>
+              </div>
+            </div>
 
             {error && <p className="text-xs" style={{ color: "hsl(var(--ll-expense))" }}>{error}</p>}
 
