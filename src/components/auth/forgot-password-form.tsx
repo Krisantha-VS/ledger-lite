@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { Wallet, Lock } from "lucide-react";
-import { AUTH_BASE, AUTH_CLIENT_ID } from "@/shared/config";
+import { AUTH_BASE, AUTH_CLIENT_ID, APP_URL } from "@/shared/config";
 
 export function ForgotPasswordForm() {
   const [email, setEmail]     = useState("");
@@ -18,7 +18,11 @@ export function ForgotPasswordForm() {
       const res  = await fetch(`${AUTH_BASE}/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, clientId: AUTH_CLIENT_ID }),
+        body: JSON.stringify({
+          email,
+          clientId: AUTH_CLIENT_ID,
+          redirectTo: `${APP_URL}/login`,
+        }),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Request failed");
