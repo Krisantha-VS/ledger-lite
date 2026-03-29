@@ -1,7 +1,12 @@
 import { db } from "@/lib/db";
 import { ok, fail, handleError, getUserId } from "@/lib/api";
+import { getUserEmail } from "@/lib/auth";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
+import { sendMail } from "@/infrastructure/email/mailer";
+import { largeExpenseEmail, recurringTransactionEmail } from "@/infrastructure/email/templates";
+
+const LARGE_EXPENSE_THRESHOLD = 1000;
 
 const CreateSchema = z.object({
   accountId:    z.number().int().positive(),
@@ -56,8 +61,9 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const userId = await getUserId(req);
-    const body   = CreateSchema.parse(await req.json());
+    const userId    = await getUserId(req);
+    const userEmail = await getUserEmail(req);
+    const body      = CreateSchema.parse(await req.json());
 
     // IDOR: verify ownership
     const account = await db.account.findFirst({ where: { id: body.accountId, userId, isArchived: false } });
@@ -91,6 +97,32 @@ export async function POST(req: Request) {
         account:  { select: { name: true } },
       },
     });
+
+    // ── Email triggers (non-blocking) ──────────────────────────────────────
+    if (userEmail) {
+      // Large expense alert
+      if (body.type === "expense" && body.amount >= LARGE_EXPENSE_THRESHOLD) {
+        const { subject, html } = largeExpenseEmail({
+          amount:       body.amount,
+          currency:     account.currency,
+          categoryName: category.name,
+          note:         body.note ?? null,
+        });
+        sendMail(userEmail, subject, html).catch(err => console.error("email error:", err));
+      }
+
+      // Recurring transaction confirmed
+      if (body.isRecurring && body.recurrence) {
+        const { subject, html } = recurringTransactionEmail({
+          note:        body.note ?? body.type,
+          amount:      body.amount,
+          currency:    account.currency,
+          accountName: account.name,
+          date:        body.date,
+        });
+        sendMail(userEmail, subject, html).catch(err => console.error("email error:", err));
+      }
+    }
 
     return ok(tx, 201);
   } catch (e) { return handleError(e); }

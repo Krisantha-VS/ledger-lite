@@ -29,3 +29,13 @@ export async function getUserId(request: Request): Promise<string> {
   const payload = await verifyJWT(token);
   return payload.sub;
 }
+
+export async function getUserEmail(request: Request): Promise<string | null> {
+  try {
+    const token = extractBearer(request.headers.get("Authorization"));
+    const payload = await verifyJWT(token);
+    return payload.email ?? null;
+  } catch {
+    return null;
+  }
+}
