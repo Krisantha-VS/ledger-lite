@@ -68,7 +68,7 @@ export function TransactionsView() {
       <div className="relative">
         <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 pointer-events-none" style={{ color: "hsl(var(--ll-text-muted))" }} />
         <input
-          className="ll-input pl-8 pr-8 text-sm"
+          className="ll-input pl-9 pr-8 text-sm"
           placeholder="Search by note, category or account…"
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(1); }}
