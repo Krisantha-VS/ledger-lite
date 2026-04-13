@@ -1,31 +1,35 @@
-import { AUTH_CLIENT_ID } from "@/shared/config";
+// Access token lives in sessionStorage. Refresh token lives in an httpOnly
+// cookie (path=/api/auth/refresh) — never accessible to JS.
 
-// Tokens are namespaced to prevent collision with other apps on the same domain.
-const TOKEN_KEY   = "ll_token";
-const REFRESH_KEY = "ll_refresh";
+const TOKEN_KEY = 'll_token';
 
 // ─── Storage ─────────────────────────────────────────────
 
-export function storeTokens(access: string, refresh: string) {
-  localStorage.setItem(TOKEN_KEY, access);
-  localStorage.setItem(REFRESH_KEY, refresh);
+export function storeTokens(access: string) {
+  sessionStorage.setItem(TOKEN_KEY, access);
 }
 
 export function getAccessToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  return sessionStorage.getItem(TOKEN_KEY);
 }
 
-export function getRefreshToken(): string | null {
-  return localStorage.getItem(REFRESH_KEY);
+export function clearTokens(): void {
+  sessionStorage.removeItem(TOKEN_KEY);
+  fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
 }
 
-export function clearTokens() {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(REFRESH_KEY);
+// Consume the short-lived _at_init cookie set by the OAuth callback.
+// Called once on app init — reads, stores, then immediately clears the cookie.
+export function consumeInitToken(): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(/(?:^|; )ll_at_init=([^;]*)/);
+  if (!match) return null;
+  const token = decodeURIComponent(match[1]);
+  document.cookie = 'll_at_init=; Path=/; Max-Age=0';
+  return token;
 }
 
 // ─── Refresh mutex ────────────────────────────────────────
-// Prevents multiple concurrent 401s from each firing a refresh.
 
 let _refreshPromise: Promise<string | null> | null = null;
 
@@ -33,35 +37,23 @@ export async function refreshAccessToken(): Promise<string | null> {
   if (_refreshPromise) return _refreshPromise;
 
   _refreshPromise = (async () => {
-    const refreshToken = getRefreshToken();
-    if (!refreshToken) return null;
     try {
-      const res  = await fetch("/proxy/auth/refresh", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refreshToken, clientId: AUTH_CLIENT_ID }),
-      });
-      // Only treat 401/403 as a definitive "token invalid" signal.
-      // 5xx or network errors should not log the user out.
+      const res = await fetch('/api/auth/refresh', { method: 'POST' });
       if (res.status === 401 || res.status === 403) {
-        window.dispatchEvent(new Event("auth:expired"));
+        window.dispatchEvent(new Event('auth:expired'));
         clearTokens();
         return null;
       }
-      if (!res.ok) return null; // temporary server error — keep tokens, let caller handle
+      if (!res.ok) return null;
       const json = await res.json();
       if (!json.success) {
-        window.dispatchEvent(new Event("auth:expired"));
+        window.dispatchEvent(new Event('auth:expired'));
         clearTokens();
         return null;
       }
-      const tokenData = json.data.tokens ?? json.data;
-      const { accessToken, refreshToken: newRefresh } = tokenData;
-      storeTokens(accessToken, newRefresh ?? refreshToken);
-      return accessToken as string;
+      storeTokens(json.data.accessToken);
+      return json.data.accessToken as string;
     } catch {
-      // Network error — do not clear tokens or fire auth:expired.
-      // The user is still "logged in"; they just have no connectivity right now.
       return null;
     } finally {
       _refreshPromise = null;
@@ -79,20 +71,16 @@ export async function authFetch(
 ): Promise<Response> {
   const token = getAccessToken();
   const headers = new Headers(options.headers ?? {});
-  if (!headers.has("Content-Type") && options.method !== "GET")
-    headers.set("Content-Type", "application/json");
-  if (token) headers.set("Authorization", `Bearer ${token}`);
+  if (!headers.has('Content-Type') && options.method !== 'GET')
+    headers.set('Content-Type', 'application/json');
+  if (token) headers.set('Authorization', `Bearer ${token}`);
 
   const res = await fetch(url, { ...options, headers });
 
-  // Only attempt a token refresh once per authFetch call.
-  // Multiple concurrent 401s share the refresh mutex so only one
-  // refresh request ever hits AuthSaas — preventing TOKEN_REUSE.
   if (res.status === 401) {
     const newToken = await refreshAccessToken();
     if (newToken) {
-      headers.set("Authorization", `Bearer ${newToken}`);
-      // Retry once with the fresh token — no further refresh on failure
+      headers.set('Authorization', `Bearer ${newToken}`);
       return fetch(url, { ...options, headers });
     }
   }

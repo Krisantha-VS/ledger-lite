@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { getAccessToken, refreshAccessToken } from "@/shared/lib/auth-client";
+import { getAccessToken, refreshAccessToken, storeTokens, consumeInitToken } from "@/shared/lib/auth-client";
 
 export function AuthGuard({ children }: { children: React.ReactNode }) {
   const [ready, setReady] = useState(false);
@@ -9,22 +9,30 @@ export function AuthGuard({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     mounted.current = true;
-
-    // Hard redirect when refresh token expires mid-session.
-    // Registered here so cleanup works correctly via useEffect return.
     const onExpired = () => window.location.replace("/login");
     window.addEventListener("auth:expired", onExpired);
 
     const check = async () => {
-      if (!getAccessToken()) {
-        const refreshed = await refreshAccessToken();
-        if (!mounted.current) return;
-        if (!refreshed) {
-          window.location.replace("/login");
-          return;
-        }
+      // 1. Already have a token in sessionStorage
+      if (getAccessToken()) {
+        if (mounted.current) setReady(true);
+        return;
       }
-      if (mounted.current) setReady(true);
+      // 2. Consume _at_init cookie set by OAuth callback
+      const initTok = consumeInitToken();
+      if (initTok) {
+        storeTokens(initTok);
+        if (mounted.current) setReady(true);
+        return;
+      }
+      // 3. Silent refresh via httpOnly cookie
+      const refreshed = await refreshAccessToken();
+      if (!mounted.current) return;
+      if (!refreshed) {
+        window.location.replace("/login");
+        return;
+      }
+      setReady(true);
     };
 
     check();
