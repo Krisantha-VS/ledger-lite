@@ -7,6 +7,7 @@ import { authFetch } from "@/shared/lib/auth-client";
 import { useAccounts } from "@/features/accounts/hooks/useAccounts";
 import { useCategories } from "@/features/categories/hooks/useCategories";
 import { accountTypeLabel } from "@/lib/account-types";
+import type { Transaction } from "@/shared/types";
 
 // ─── CSV Parser ──────────────────────────────────────────────────────────────
 
@@ -138,6 +139,42 @@ function buildRows(rows: string[][], colMap: ColMap): { valid: ParsedRow[]; inva
   return { valid, invalid };
 }
 
+// ─── Recurring detection ─────────────────────────────────────────────────────
+
+function detectRecurring(
+  rows: ParsedRow[],
+  existing: Transaction[]
+): Map<number, { recurrence: "weekly" | "monthly"; confidence: number }> {
+  const suggestions = new Map<number, { recurrence: "weekly" | "monthly"; confidence: number }>();
+
+  rows.forEach((row, idx) => {
+    // Find existing transactions within ±1% of this amount
+    const matches = existing.filter(tx =>
+      tx.type === row.type &&
+      Math.abs(Number(tx.amount) - row.amount) / row.amount < 0.01
+    );
+    if (matches.length < 1) return;
+
+    // Check if any matches are ~30 days apart (monthly) or ~7 days apart (weekly)
+    const rowDate = new Date(row.date);
+    const hasMonthly = matches.some(tx => {
+      const diff = Math.abs(rowDate.getTime() - new Date(tx.date).getTime());
+      const days = diff / (1000 * 60 * 60 * 24);
+      return days >= 25 && days <= 35;
+    });
+    const hasWeekly = matches.some(tx => {
+      const diff = Math.abs(rowDate.getTime() - new Date(tx.date).getTime());
+      const days = diff / (1000 * 60 * 60 * 24);
+      return days >= 5 && days <= 9;
+    });
+
+    if (hasMonthly) suggestions.set(idx, { recurrence: "monthly", confidence: 0.85 });
+    else if (hasWeekly) suggestions.set(idx, { recurrence: "weekly", confidence: 0.85 });
+  });
+
+  return suggestions;
+}
+
 // ─── Component ───────────────────────────────────────────────────────────────
 
 type Step = 1 | 2 | 3;
@@ -173,6 +210,10 @@ export function ImportView() {
   type RowWithDup = ParsedRow & { isDuplicate?: boolean };
   const [rowsWithDups, setRowsWithDups] = useState<RowWithDup[]>([]);
   const [checkedRows, setCheckedRows]   = useState<Set<number>>(new Set());
+
+  // Recurring detection
+  const [recurringSuggestions, setRecurringSuggestions] = useState<Map<number, { recurrence: "weekly" | "monthly"; confidence: number }>>(new Map());
+  const [recurringOverrides, setRecurringOverrides]     = useState<Map<number, boolean>>(new Map());
 
   // Shared
   const [accountId,  setAccountId]  = useState("");
@@ -282,7 +323,7 @@ export function ImportView() {
     try {
       const res  = await authFetch("/api/v1/transactions?perPage=200");
       const json = await res.json();
-      const existing: { amount: number; date: string }[] = json.success ? (json.data?.rows ?? []) : [];
+      const existing: Transaction[] = json.success ? (json.data?.rows ?? []) : [];
 
       const marked: RowWithDup[] = rows.map(row => {
         const isDuplicate = existing.some(ex =>
@@ -297,6 +338,14 @@ export function ImportView() {
       const checked = new Set<number>();
       marked.forEach((r, i) => { if (!r.isDuplicate) checked.add(i); });
       setCheckedRows(checked);
+
+      // Run recurring detection with the same existing transactions
+      const suggestions = detectRecurring(rows, existing);
+      setRecurringSuggestions(suggestions);
+      // Pre-accept all suggestions (user can dismiss individually)
+      const overrides = new Map<number, boolean>();
+      suggestions.forEach((_, idx) => overrides.set(idx, true));
+      setRecurringOverrides(overrides);
     } catch {
       // If duplicate check fails, mark all as checked with no duplicates
       const marked: RowWithDup[] = rows.map(r => ({ ...r, isDuplicate: false }));
@@ -343,10 +392,32 @@ export function ImportView() {
 
     if (validRows.length === 0) { toast.error("No valid rows to import"); return; }
 
+    // Enrich rows with recurring metadata (AI mode only).
+    // In AI mode validRows were built by filtering rowsWithDups by checkedRows,
+    // so we rebuild with original indices preserved.
+    let enrichedRows: (ParsedRow & { isRecurring?: boolean; recurrence?: string; nextDue?: string })[];
+    if (mode === "ai" && rowsWithDups.length > 0) {
+      enrichedRows = [];
+      rowsWithDups.forEach((row, idx) => {
+        if (!checkedRows.has(idx)) return;
+        const suggestion = recurringSuggestions.get(idx);
+        if (suggestion && recurringOverrides.get(idx) === true) {
+          const daysToAdd = suggestion.recurrence === "monthly" ? 30 : 7;
+          const nextDue = new Date(new Date(row.date).getTime() + daysToAdd * 24 * 60 * 60 * 1000)
+            .toISOString().slice(0, 10);
+          enrichedRows.push({ ...row, isRecurring: true, recurrence: suggestion.recurrence, nextDue });
+        } else {
+          enrichedRows.push(row);
+        }
+      });
+    } else {
+      enrichedRows = validRows;
+    }
+
     setImporting(true);
     try {
       const body: Record<string, unknown> = {
-        transactions: validRows,
+        transactions: enrichedRows,
         accountId:    parseInt(accountId),
       };
       if (categoryId) body.categoryId = parseInt(categoryId);
@@ -375,6 +446,7 @@ export function ImportView() {
     setAutoDetected(false); setIsMint(false);
     setAiRows([]); setAiModel("");
     setRowsWithDups([]); setCheckedRows(new Set());
+    setRecurringSuggestions(new Map()); setRecurringOverrides(new Map());
     setAccountId(""); setCategoryId(""); setImportResult(null);
   };
 
@@ -643,11 +715,30 @@ export function ImportView() {
                             </td>
                           )}
                           <td className="px-4 py-2" style={{ color: "hsl(var(--ll-text-secondary))" }}>{row.date}</td>
-                          <td className="px-4 py-2 max-w-[160px] truncate" style={{ color: "hsl(var(--ll-text-primary))" }}>
-                            {row.description}
+                          <td className="px-4 py-2 max-w-[180px]" style={{ color: "hsl(var(--ll-text-primary))" }}>
+                            <span className="block truncate">{row.description}</span>
                             {isDup && (
                               <span className="ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-semibold bg-yellow-500/15 text-yellow-500">
                                 Duplicate?
+                              </span>
+                            )}
+                            {recurringSuggestions.has(i) && (
+                              <span className="inline-flex items-center gap-1 mt-0.5">
+                                <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-teal-500/10 text-teal-400">
+                                  ↻ {recurringSuggestions.get(i)!.recurrence}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => setRecurringOverrides(prev => new Map(prev).set(i, !(prev.get(i) ?? false)))}
+                                  className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                                    recurringOverrides.get(i)
+                                      ? "bg-teal-500/20 text-teal-300"
+                                      : "bg-teal-500/5 text-teal-600 line-through"
+                                  }`}
+                                  title={recurringOverrides.get(i) ? "Click to dismiss recurring" : "Click to accept recurring"}
+                                >
+                                  {recurringOverrides.get(i) ? "recurring" : "dismiss"}
+                                </button>
                               </span>
                             )}
                           </td>
