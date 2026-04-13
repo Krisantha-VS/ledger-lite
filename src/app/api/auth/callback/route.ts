@@ -18,7 +18,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${APP_URL}/login?auth_error=invalid_state`);
   }
 
-  const tokenRes = await fetch(`${AUTH_URL}/api/v1/oauth/token`, {
+  const tokenRes = await fetch(`${AUTH_URL}/oauth/token`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify({

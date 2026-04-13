@@ -9,7 +9,7 @@ export async function POST(_req: NextRequest) {
   const refreshToken = jar.get('ll_refresh')?.value;
   if (!refreshToken) return NextResponse.json({ success: false }, { status: 401 });
 
-  const res = await fetch(`${AUTH_URL}/api/v1/auth/refresh`, {
+  const res = await fetch(`${AUTH_URL}/auth/refresh`, {
     method:  'POST',
     headers: { 'Content-Type': 'application/json' },
     body:    JSON.stringify({ refreshToken, clientId: CLIENT_ID }),

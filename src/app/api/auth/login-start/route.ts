@@ -14,7 +14,7 @@ export async function GET(_req: NextRequest) {
   const state       = crypto.randomBytes(16).toString('hex');
   const redirectUri = `${APP_URL}/api/auth/callback`;
 
-  const url = new URL(`${AUTH_URL}/api/v1/oauth/authorize`);
+  const url = new URL(`${AUTH_URL}/oauth/authorize`);
   url.searchParams.set('response_type',         'code');
   url.searchParams.set('client_id',             CLIENT_ID);
   url.searchParams.set('redirect_uri',          redirectUri);
