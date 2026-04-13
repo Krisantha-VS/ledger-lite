@@ -6,6 +6,7 @@ import { useCategories } from "@/features/categories/hooks/useCategories";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
+import { CategoryIcon } from "@/components/ui/category-icon";
 import type { Category, CategoryType } from "@/shared/types";
 
 const PRESET_COLOURS = ["#94a3b8", "#6366f1", "#22c55e", "#f59e0b", "#ef4444", "#ec4899"];
@@ -83,6 +84,12 @@ function CategoryRow({
     return (
       <div className="ll-card p-3 space-y-2">
         <div className="flex items-center gap-2">
+          <div
+            className="h-8 w-8 rounded-full flex-shrink-0 flex items-center justify-center text-sm"
+            style={{ background: editState.colour + "33", color: editState.colour }}
+          >
+            <CategoryIcon icon={editState.icon} size={15} />
+          </div>
           <input
             className="ll-input flex-1 text-sm"
             value={editState.name}
@@ -134,9 +141,9 @@ function CategoryRow({
       {/* Colour icon circle */}
       <div
         className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm"
-        style={{ background: cat.colour + "33" }}
+        style={{ background: cat.colour + "33", color: cat.colour }}
       >
-        {cat.icon}
+        <CategoryIcon icon={cat.icon} size={15} />
       </div>
 
       {/* Name + badges */}
@@ -321,7 +328,14 @@ export function CategoriesView() {
           <p className="text-xs font-semibold" style={{ color: "hsl(var(--ll-text-secondary))" }}>
             New Category
           </p>
-          <div className="flex gap-2">
+          {/* Row 1: icon preview + name */}
+          <div className="flex items-center gap-2">
+            <div
+              className="h-10 w-10 rounded-full flex-shrink-0 flex items-center justify-center text-base"
+              style={{ background: newForm.colour + "33", color: newForm.colour }}
+            >
+              <CategoryIcon icon={newForm.icon} size={18} />
+            </div>
             <input
               className="ll-input flex-1 text-sm"
               placeholder="Name"
@@ -329,14 +343,34 @@ export function CategoriesView() {
               onChange={e => setNewForm(f => ({ ...f, name: e.target.value }))}
               autoFocus
             />
+          </div>
+          {/* Row 2: quick emoji picker */}
+          <div className="space-y-1.5">
+            <div className="flex flex-wrap gap-1">
+              {["📦", "🛒", "🏠", "💊", "🚗", "⚡", "💰", "🎮", "🍔", "✈️"].map(emoji => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => setNewForm(f => ({ ...f, icon: emoji }))}
+                  className="rounded-md px-1.5 py-1 text-base transition-colors hover:bg-white/10"
+                  style={{
+                    background: newForm.icon === emoji ? newForm.colour + "33" : "transparent",
+                    outline: newForm.icon === emoji ? `1.5px solid ${newForm.colour}` : "none",
+                  }}
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
             <input
-              className="ll-input w-16 text-center text-sm"
-              placeholder="Icon"
+              className="ll-input w-36 text-sm"
+              placeholder="or type emoji…"
               value={newForm.icon}
               onChange={e => setNewForm(f => ({ ...f, icon: e.target.value }))}
               maxLength={4}
             />
           </div>
+          {/* Row 3: colour + type */}
           <div className="flex items-center gap-3">
             <ColourPicker
               value={newForm.colour}
@@ -353,6 +387,7 @@ export function CategoriesView() {
               <option value="both">Both</option>
             </select>
           </div>
+          {/* Row 4: actions */}
           <div className="flex gap-2">
             <button
               type="button"

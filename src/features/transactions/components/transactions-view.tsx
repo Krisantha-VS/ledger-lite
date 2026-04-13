@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
-import { Plus, ArrowRightLeft } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Plus, ArrowRightLeft, Search } from "lucide-react";
+import { useSearchParams, useRouter } from "next/navigation";
 import { useTransactions } from "@/features/transactions/hooks/useTransactions";
 import { TransactionRow } from "./transaction-row";
 import { TransactionModal } from "./transaction-modal";
@@ -15,13 +16,24 @@ const TYPES = ["all", "income", "expense", "transfer"];
 export function TransactionsView() {
   const [page, setPage]     = useState(1);
   const [filter, setFilter] = useState("");
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [editTx, setEditTx]         = useState<Transaction | null>(null);
+
+  const searchParams = useSearchParams();
+  const router       = useRouter();
+  const urlAccountId = searchParams.get("accountId") ? Number(searchParams.get("accountId")) : undefined;
+
+  useEffect(() => {
+    const t = setTimeout(() => { setDebouncedSearch(search); setPage(1); }, 300);
+    return () => clearTimeout(t);
+  }, [search]);
 
   useKeyboardShortcuts({ onNewTransaction: () => setShowCreate(true) });
 
   const { transactions, total, loading, createTransaction, updateTransaction, deleteTransaction } = useTransactions({
-    page, perPage: 20, type: filter || undefined,
+    page, perPage: 20, type: filter || undefined, search: debouncedSearch || undefined, accountId: urlAccountId,
   });
 
   const totalPages = Math.ceil(total / 20);
@@ -43,6 +55,17 @@ export function TransactionsView() {
         </button>
       </div>
 
+      {/* Search */}
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={{ color: "hsl(var(--ll-text-muted))" }} />
+        <input
+          className="ll-input pl-8 text-sm"
+          placeholder="Search transactions…"
+          value={search}
+          onChange={e => { setSearch(e.target.value); setPage(1); }}
+        />
+      </div>
+
       {/* Type filter */}
       <div className="flex gap-1">
         {TYPES.map(t => (
@@ -59,6 +82,14 @@ export function TransactionsView() {
           </button>
         ))}
       </div>
+
+      {/* Account filter banner */}
+      {urlAccountId && (
+        <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs" style={{ background: "hsl(var(--ll-accent)/0.1)", color: "hsl(var(--ll-accent))" }}>
+          <span>Filtered by account</span>
+          <button onClick={() => router.push('/transactions')} className="ml-auto font-medium hover:underline">Clear ✕</button>
+        </div>
+      )}
 
       <div className="ll-card overflow-hidden">
         <div className="divide-y" style={{ borderColor: "hsl(var(--ll-border))" }}>

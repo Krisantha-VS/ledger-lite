@@ -54,10 +54,13 @@ export interface Budget {
   userId:     string;
   categoryId: number;
   amount:     number;
+  rollover:   boolean;
   period:     "monthly";
   createdAt:  string;
   // computed
   spent?:          number;
+  rolloverAmount?: number;
+  effectiveAmount?: number;
   categoryName?:   string;
   categoryColour?: string;
   categoryIcon?:   string;

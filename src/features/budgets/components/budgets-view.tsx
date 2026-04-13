@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Target, Trash2 } from "lucide-react";
+import { Plus, Target, Trash2, RefreshCw } from "lucide-react";
+import { CategoryIcon } from "@/components/ui/category-icon";
 import { useBudgets } from "@/features/budgets/hooks/useBudgets";
 import { useCategories } from "@/features/categories/hooks/useCategories";
 import { Modal } from "@/components/ui/modal";
@@ -16,6 +17,7 @@ import { formatCurrency } from "@/shared/lib/formatters";
 const schema = z.object({
   categoryId: z.number().int().positive("Select a category"),
   amount:     z.number().positive("Must be greater than 0"),
+  rollover:   z.boolean(),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -26,18 +28,20 @@ export function BudgetsView() {
   const [modalOpen, setModalOpen] = useState(false);
   const [deleteId, setDeleteId]   = useState<number | null>(null);
 
-  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { categoryId: undefined, amount: undefined },
+    defaultValues: { categoryId: undefined, amount: undefined, rollover: false },
   });
 
+  const rolloverValue = watch("rollover");
+
   const openModal = () => {
-    reset({ categoryId: undefined, amount: undefined });
+    reset({ categoryId: undefined, amount: undefined, rollover: false });
     setModalOpen(true);
   };
 
   const onSubmit = async (data: FormData) => {
-    await upsertBudget({ categoryId: data.categoryId, amount: data.amount });
+    await upsertBudget({ categoryId: data.categoryId, amount: data.amount, rollover: data.rollover });
     setModalOpen(false);
   };
 
@@ -77,16 +81,25 @@ export function BudgetsView() {
       ) : (
         <div className="space-y-2">
           {budgets.map(b => {
-            const pct  = Math.min(100, ((b.spent ?? 0) / b.amount) * 100);
-            const over = (b.spent ?? 0) > b.amount;
+            const effective = b.effectiveAmount ?? Number(b.amount);
+            const pct  = Math.min(100, ((b.spent ?? 0) / effective) * 100);
+            const over = (b.spent ?? 0) > effective;
             return (
               <div key={b.id} className="ll-card p-4">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm">{b.categoryIcon ?? "📦"}</span>
-                    <span className="text-sm font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
-                      {b.categoryName}
-                    </span>
+                    <CategoryIcon icon={b.categoryIcon ?? "📦"} size={14} />
+                    <div>
+                      <span className="text-sm font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
+                        {b.categoryName}
+                      </span>
+                      {b.rollover && (b.rolloverAmount ?? 0) > 0 && (
+                        <p className="text-[10px] flex items-center gap-1" style={{ color: "hsl(var(--ll-text-muted))" }}>
+                          <RefreshCw className="h-2.5 w-2.5" />
+                          +{formatCurrency(b.rolloverAmount!)} rolled over
+                        </p>
+                      )}
+                    </div>
                     {over && (
                       <span className="rounded bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-medium text-rose-400">
                         Over limit
@@ -95,7 +108,7 @@ export function BudgetsView() {
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="ll-mono text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>
-                      {formatCurrency(b.spent ?? 0)} / {formatCurrency(b.amount)}
+                      {formatCurrency(b.spent ?? 0)} / {formatCurrency(effective)}
                     </span>
                     <button
                       onClick={() => setDeleteId(b.id)}
@@ -145,6 +158,33 @@ export function BudgetsView() {
             <input className="ll-input ll-mono" type="number" step="0.01" min="1" placeholder="0.00" aria-label="Monthly limit" {...register("amount", { valueAsNumber: true })} />
             {errors.amount && <p className="mt-0.5 text-xs" style={{ color: "hsl(var(--ll-expense))" }}>{errors.amount.message}</p>}
           </div>
+
+          <button
+            type="button"
+            onClick={() => setValue("rollover", !rolloverValue)}
+            className="flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-left transition-colors"
+            style={{
+              borderColor: rolloverValue ? "hsl(var(--ll-accent))" : "hsl(var(--ll-border))",
+              background: rolloverValue ? "hsl(var(--ll-accent) / 0.05)" : "transparent",
+            }}
+          >
+            <div className="flex items-center gap-2">
+              <RefreshCw className="h-3.5 w-3.5" style={{ color: rolloverValue ? "hsl(var(--ll-accent))" : "hsl(var(--ll-text-muted))" }} />
+              <div>
+                <p className="text-xs font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>Rollover unused budget</p>
+                <p className="text-[10px]" style={{ color: "hsl(var(--ll-text-muted))" }}>Carry unspent balance to next month</p>
+              </div>
+            </div>
+            <div
+              className="h-4 w-7 rounded-full transition-colors relative"
+              style={{ background: rolloverValue ? "hsl(var(--ll-accent))" : "hsl(var(--ll-border))" }}
+            >
+              <div
+                className="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform"
+                style={{ transform: rolloverValue ? "translateX(14px)" : "translateX(2px)" }}
+              />
+            </div>
+          </button>
 
           <button
             type="submit" disabled={isSubmitting}

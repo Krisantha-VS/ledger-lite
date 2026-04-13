@@ -6,6 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Modal } from "@/components/ui/modal";
 import { useAccounts } from "@/features/accounts/hooks/useAccounts";
+import { accountTypeLabel } from "@/lib/account-types";
 import { useCategories } from "@/features/categories/hooks/useCategories";
 import type { Transaction } from "@/shared/types";
 
@@ -28,6 +29,11 @@ interface Props {
   onClose: () => void;
   onSave: (payload: FormData) => Promise<void>;
   initial?: Transaction;
+}
+
+/** True if the string looks like an emoji (non-ASCII) rather than a Lucide icon name */
+function isEmojiIcon(s: string): boolean {
+  return s.length > 0 && !/^[A-Z][A-Za-z0-9]*$/.test(s);
 }
 
 export function TransactionModal({ open, onClose, onSave, initial }: Props) {
@@ -118,7 +124,9 @@ export function TransactionModal({ open, onClose, onSave, initial }: Props) {
         <div>
           <label className="mb-1 block text-xs font-medium" style={{ color: "hsl(var(--ll-text-secondary))" }}>Account</label>
           <select className="ll-input" aria-label="Account" {...register("accountId", { valueAsNumber: true })}>
-            {accounts.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+            {accounts.map(a => (
+              <option key={a.id} value={a.id}>{a.name} — {accountTypeLabel(a.type)}</option>
+            ))}
           </select>
           {errors.accountId && <p className="mt-0.5 text-xs" style={{ color: "hsl(var(--ll-expense))" }}>{errors.accountId.message}</p>}
         </div>
@@ -138,7 +146,7 @@ export function TransactionModal({ open, onClose, onSave, initial }: Props) {
         <div>
           <label className="mb-1 block text-xs font-medium" style={{ color: "hsl(var(--ll-text-secondary))" }}>Category</label>
           <select className="ll-input" aria-label="Category" {...register("categoryId", { valueAsNumber: true })}>
-            {filteredCats.map(c => <option key={c.id} value={c.id}>{c.icon} {c.name}</option>)}
+            {filteredCats.map(c => <option key={c.id} value={c.id}>{isEmojiIcon(c.icon) ? `${c.icon} ` : ""}{c.name}</option>)}
           </select>
           {errors.categoryId && <p className="mt-0.5 text-xs" style={{ color: "hsl(var(--ll-expense))" }}>{errors.categoryId.message}</p>}
         </div>

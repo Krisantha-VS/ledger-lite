@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CategoryIcon } from "@/components/ui/category-icon";
 import {
   AreaChart, Area, BarChart, Bar, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend,
@@ -92,6 +93,10 @@ export function ReportsView() {
         </p>
         {mLoading ? (
           <Skeleton className="h-52 w-full" />
+        ) : chartData.length === 0 ? (
+          <div className="flex h-52 items-center justify-center">
+            <p className="text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>No transactions in this period</p>
+          </div>
         ) : (
           <ResponsiveContainer width="100%" height={200}>
             <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
@@ -127,6 +132,10 @@ export function ReportsView() {
         </p>
         {mLoading ? (
           <Skeleton className="h-44 w-full" />
+        ) : chartData.length === 0 ? (
+          <div className="flex h-44 items-center justify-center">
+            <p className="text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>No transactions in this period</p>
+          </div>
         ) : (
           <ResponsiveContainer width="100%" height={160}>
             <BarChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
@@ -174,7 +183,7 @@ export function ReportsView() {
                 <div key={c.categoryId} className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <div className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: c.colour || CHART_COLORS[i % CHART_COLORS.length] }} />
-                    <span className="text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>{c.icon} {c.name}</span>
+                    <span className="flex items-center gap-1 text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}><CategoryIcon icon={c.icon} size={12} /> {c.name}</span>
                   </div>
                   <span className="ll-mono text-xs font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
                     {c.percentage}%

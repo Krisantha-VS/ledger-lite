@@ -62,9 +62,9 @@ export function KpiCardsV2() {
       {cards.map(c => (
         <div key={c.label} className="v2-card group p-5 flex flex-col justify-between transition-all hover:border-[hsl(var(--v2-accent)/0.3)]">
           <div className="flex items-start justify-between">
-            <div>
-              <p className="text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--v2-text-muted))] mb-1">{c.label}</p>
-              <h3 className="text-xl font-bold tracking-tight text-[hsl(var(--v2-text-primary))]">{c.value}</h3>
+            <div className="min-w-0 flex-1">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[hsl(var(--v2-text-muted))] mb-1 truncate">{c.label}</p>
+              <h3 className="text-xl font-bold tracking-tight text-[hsl(var(--v2-text-primary))] truncate" title={c.value}>{c.value}</h3>
             </div>
             <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[hsl(var(--v2-surface))] border border-[hsl(var(--v2-border))] shadow-sm group-hover:bg-[hsl(var(--v2-accent)/0.05)] transition-colors">
               <c.icon className="h-4 w-4" style={{ color: c.color }} />

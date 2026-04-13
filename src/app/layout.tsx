@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Providers } from "@/components/providers";
+import { SwRegister } from "@/components/sw-register";
 import "./globals.css";
 
 const inter = Inter({
@@ -20,6 +21,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" className={inter.variable} suppressHydrationWarning>
       <body className="font-[family-name:var(--font-inter)] antialiased">
         <Providers>{children}</Providers>
+        <SwRegister />
       </body>
     </html>
   );

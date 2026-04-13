@@ -11,6 +11,7 @@ interface Filters {
   accountId?: number;
   type?:      string;
   month?:     string;
+  search?:    string;
 }
 
 async function fetchTransactions(filters: Filters): Promise<{ rows: Transaction[]; total: number }> {
@@ -20,6 +21,7 @@ async function fetchTransactions(filters: Filters): Promise<{ rows: Transaction[
   if (filters.accountId) params.set("accountId", String(filters.accountId));
   if (filters.type)      params.set("type",      filters.type);
   if (filters.month)     params.set("month",     filters.month);
+  if (filters.search)    params.set("search",    filters.search);
 
   const res  = await authFetch(`/api/v1/transactions?${params}`);
   const json = await res.json();

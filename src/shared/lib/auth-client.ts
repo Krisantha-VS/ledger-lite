@@ -71,7 +71,7 @@ export async function authFetch(
 ): Promise<Response> {
   const token = getAccessToken();
   const headers = new Headers(options.headers ?? {});
-  if (!headers.has('Content-Type') && options.method !== 'GET')
+  if (!headers.has('Content-Type') && options.method !== 'GET' && !(options.body instanceof FormData))
     headers.set('Content-Type', 'application/json');
   if (token) headers.set('Authorization', `Bearer ${token}`);
 

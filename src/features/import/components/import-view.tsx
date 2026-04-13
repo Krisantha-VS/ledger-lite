@@ -1,18 +1,17 @@
 "use client";
 
 import { useState, useRef, useCallback, DragEvent, ChangeEvent } from "react";
-import { Upload, FileText, ChevronRight, Check, AlertCircle } from "lucide-react";
+import { Upload, FileText, ChevronRight, Check, AlertCircle, Sparkles, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { authFetch } from "@/shared/lib/auth-client";
 import { useAccounts } from "@/features/accounts/hooks/useAccounts";
 import { useCategories } from "@/features/categories/hooks/useCategories";
+import { accountTypeLabel } from "@/lib/account-types";
 
 // ─── CSV Parser ──────────────────────────────────────────────────────────────
-// Handles quoted fields, commas inside quoted values, \r\n and \n line endings.
 
 function parseCSV(raw: string): string[][] {
   const rows: string[][] = [];
-  // Normalise line endings
   const text = raw.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
   let i = 0;
 
@@ -22,42 +21,25 @@ function parseCSV(raw: string): string[][] {
 
     while (inRow) {
       if (text[i] === '"') {
-        // Quoted field
         let field = "";
-        i++; // skip opening quote
+        i++;
         while (i < text.length) {
-          if (text[i] === '"' && text[i + 1] === '"') {
-            field += '"';
-            i += 2;
-          } else if (text[i] === '"') {
-            i++; // skip closing quote
-            break;
-          } else {
-            field += text[i++];
-          }
+          if (text[i] === '"' && text[i + 1] === '"') { field += '"'; i += 2; }
+          else if (text[i] === '"') { i++; break; }
+          else { field += text[i++]; }
         }
         row.push(field);
       } else {
-        // Unquoted field — read until , or \n or EOF
         let field = "";
-        while (i < text.length && text[i] !== "," && text[i] !== "\n") {
-          field += text[i++];
-        }
+        while (i < text.length && text[i] !== "," && text[i] !== "\n") field += text[i++];
         row.push(field.trim());
       }
 
-      if (i >= text.length || text[i] === "\n") {
-        i++; // consume \n
-        inRow = false;
-      } else if (text[i] === ",") {
-        i++; // consume , and continue row
-      }
+      if (i >= text.length || text[i] === "\n") { i++; inRow = false; }
+      else if (text[i] === ",") { i++; }
     }
 
-    // Skip empty trailing rows
-    if (row.length > 0 && !(row.length === 1 && row[0] === "")) {
-      rows.push(row);
-    }
+    if (row.length > 0 && !(row.length === 1 && row[0] === "")) rows.push(row);
   }
 
   return rows;
@@ -66,63 +48,51 @@ function parseCSV(raw: string): string[][] {
 // ─── Column auto-detection ───────────────────────────────────────────────────
 
 interface ColMap {
-  date: number;
-  description: number;
-  amount: number;
-  type: number;   // -1 = not found (derive from amount sign)
-  credit: number; // -1 = not found
-  debit: number;  // -1 = not found
+  date: number; description: number; amount: number;
+  type: number; credit: number; debit: number;
+  mintCategory: number; mintDates: boolean;
+}
+
+function detectMint(headers: string[]): boolean {
+  const h = headers.map(s => s.toLowerCase().trim());
+  return h.includes("original description") && h.includes("transaction type");
 }
 
 function autoDetectColumns(headers: string[]): ColMap | null {
-  const h = headers.map((s) => s.toLowerCase().trim());
+  const h = headers.map(s => s.toLowerCase().trim());
+  const find = (...terms: string[]) => h.findIndex(col => terms.some(t => col.includes(t)));
 
-  const find = (...terms: string[]) =>
-    h.findIndex((col) => terms.some((t) => col.includes(t)));
-
-  const dateIdx        = find("date");
-  const amountIdx      = find("amount");
-  const descIdx        = find("description", "memo", "payee", "narrative", "details");
-  const typeIdx        = find("type");
-  const creditIdx      = find("credit");
-  const debitIdx       = find("debit");
+  const dateIdx     = find("date");
+  const amountIdx   = find("amount");
+  const descIdx     = find("description", "memo", "payee", "narrative", "details");
+  const typeIdx     = find("type");
+  const creditIdx   = find("credit");
+  const debitIdx    = find("debit");
+  const categoryIdx = find("category");
 
   if (dateIdx === -1 || descIdx === -1) return null;
   if (amountIdx === -1 && creditIdx === -1 && debitIdx === -1) return null;
 
-  return {
-    date:        dateIdx,
-    description: descIdx,
-    amount:      amountIdx,
-    type:        typeIdx,
-    credit:      creditIdx,
-    debit:       debitIdx,
-  };
+  const isMint = detectMint(headers);
+  return { date: dateIdx, description: descIdx, amount: amountIdx, type: typeIdx,
+           credit: creditIdx, debit: debitIdx, mintCategory: isMint ? categoryIdx : -1, mintDates: isMint };
 }
 
 // ─── Row parsing ─────────────────────────────────────────────────────────────
 
 interface ParsedRow {
-  date:        string;
-  description: string;
-  amount:      number;
-  type:        "income" | "expense";
+  date: string; description: string; amount: number;
+  type: "income" | "expense"; categoryName?: string; confidence?: number;
 }
 
-function toISODate(raw: string): string | null {
-  // Support common formats: YYYY-MM-DD, DD/MM/YYYY, MM/DD/YYYY, DD-MM-YYYY
+function toISODate(raw: string, mdy = false): string | null {
   raw = raw.trim();
-  // Already ISO
   if (/^\d{4}-\d{2}-\d{2}$/.test(raw)) return raw;
-  // DD/MM/YYYY or MM/DD/YYYY or DD-MM-YYYY
   const parts = raw.split(/[\/\-\.]/);
   if (parts.length === 3) {
-    // If first part is 4-digit year: YYYY/MM/DD
-    if (parts[0].length === 4) {
-      return `${parts[0]}-${parts[1].padStart(2, "0")}-${parts[2].padStart(2, "0")}`;
-    }
-    // Assume DD/MM/YYYY (most bank exports)
-    return `${parts[2]}-${parts[1].padStart(2, "0")}-${parts[0].padStart(2, "0")}`;
+    if (parts[0].length === 4) return `${parts[0]}-${parts[1].padStart(2,"0")}-${parts[2].padStart(2,"0")}`;
+    if (mdy) return `${parts[2]}-${parts[0].padStart(2,"0")}-${parts[1].padStart(2,"0")}`;
+    return `${parts[2]}-${parts[1].padStart(2,"0")}-${parts[0].padStart(2,"0")}`;
   }
   return null;
 }
@@ -133,16 +103,14 @@ function buildRows(rows: string[][], colMap: ColMap): { valid: ParsedRow[]; inva
 
   for (const row of rows) {
     try {
-      const dateStr = toISODate(row[colMap.date] ?? "");
+      const dateStr = toISODate(row[colMap.date] ?? "", colMap.mintDates);
       if (!dateStr) { invalid++; continue; }
 
       const desc = (row[colMap.description] ?? "").trim();
-
       let amount = 0;
       let type: "income" | "expense" = "expense";
 
       if (colMap.credit !== -1 && colMap.debit !== -1) {
-        // Separate credit/debit columns
         const creditVal = parseFloat((row[colMap.credit] ?? "0").replace(/[^0-9.\-]/g, ""));
         const debitVal  = parseFloat((row[colMap.debit]  ?? "0").replace(/[^0-9.\-]/g, ""));
         if (!isNaN(creditVal) && creditVal > 0) { amount = creditVal; type = "income"; }
@@ -158,14 +126,13 @@ function buildRows(rows: string[][], colMap: ColMap): { valid: ParsedRow[]; inva
         } else {
           type = raw >= 0 ? "income" : "expense";
         }
-      } else {
-        invalid++; continue;
-      }
+      } else { invalid++; continue; }
 
-      valid.push({ date: dateStr, description: desc, amount, type });
-    } catch {
-      invalid++;
-    }
+      const categoryName = colMap.mintCategory !== -1
+        ? (row[colMap.mintCategory] ?? "").trim() || undefined : undefined;
+
+      valid.push({ date: dateStr, description: desc, amount, type, categoryName });
+    } catch { invalid++; }
   }
 
   return { valid, invalid };
@@ -174,32 +141,37 @@ function buildRows(rows: string[][], colMap: ColMap): { valid: ParsedRow[]; inva
 // ─── Component ───────────────────────────────────────────────────────────────
 
 type Step = 1 | 2 | 3;
+type Mode = "csv" | "ai";
 
 export function ImportView() {
   const { accounts, loading: accountsLoading } = useAccounts();
   const { categories, loading: categoriesLoading } = useCategories();
 
-  const [step, setStep] = useState<Step>(1);
+  const [step, setStep]       = useState<Step>(1);
+  const [mode, setMode]       = useState<Mode>("csv");
   const [dragging, setDragging] = useState(false);
   const [fileName, setFileName] = useState("");
+  const [fileObj, setFileObj]   = useState<File | null>(null);
 
-  // Parsed CSV data
-  const [headers, setHeaders] = useState<string[]>([]);
-  const [allRows, setAllRows] = useState<string[][]>([]);
-  const [colMap, setColMap] = useState<ColMap | null>(null);
+  // CSV state
+  const [headers, setHeaders]           = useState<string[]>([]);
+  const [allRows, setAllRows]           = useState<string[][]>([]);
+  const [colMap, setColMap]             = useState<ColMap | null>(null);
   const [autoDetected, setAutoDetected] = useState(false);
-
-  // Manual column mapping (indices as strings for selects)
+  const [isMint, setIsMint]             = useState(false);
   const [manualDate,   setManualDate]   = useState("0");
   const [manualDesc,   setManualDesc]   = useState("1");
   const [manualAmount, setManualAmount] = useState("2");
   const [manualType,   setManualType]   = useState("-1");
 
-  // Account / Category selection
+  // AI state
+  const [aiRows, setAiRows]       = useState<ParsedRow[]>([]);
+  const [aiParsing, setAiParsing] = useState(false);
+  const [aiModel, setAiModel]     = useState("");
+
+  // Shared
   const [accountId,  setAccountId]  = useState("");
   const [categoryId, setCategoryId] = useState("");
-
-  // Import state
   const [importing, setImporting]   = useState(false);
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
 
@@ -208,19 +180,31 @@ export function ImportView() {
   // ── File handling ──────────────────────────────────────────────────────────
 
   const processFile = useCallback((file: File) => {
-    if (!file.name.endsWith(".csv")) {
-      toast.error("Please select a .csv file");
+    const isPDF = file.name.toLowerCase().endsWith(".pdf");
+    const isCSV = file.name.toLowerCase().endsWith(".csv");
+
+    if (!isPDF && !isCSV) {
+      toast.error("Please upload a CSV or PDF file");
       return;
     }
+
     setFileName(file.name);
+    setFileObj(file);
+
+    if (isPDF) {
+      setMode("ai");
+      setStep(2);
+      runAIParse(file); // auto-trigger immediately, don't wait for state update
+      return;
+    }
+
+    // CSV — try auto-detect first
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = (e.target?.result as string) ?? "";
       const rows = parseCSV(text);
-      if (rows.length < 2) {
-        toast.error("CSV appears empty or has no data rows");
-        return;
-      }
+      if (rows.length < 2) { toast.error("CSV appears empty or has no data rows"); return; }
+
       const hdrs = rows[0];
       const data = rows.slice(1);
       setHeaders(hdrs);
@@ -230,14 +214,17 @@ export function ImportView() {
       if (detected) {
         setColMap(detected);
         setAutoDetected(true);
+        setIsMint(detected.mintCategory !== -1);
+        setMode("csv");
       } else {
         setColMap(null);
         setAutoDetected(false);
-        // Seed manual selects with sane defaults
+        setIsMint(false);
         setManualDate("0");
         setManualDesc(hdrs.length > 1 ? "1" : "0");
         setManualAmount(hdrs.length > 2 ? "2" : "0");
         setManualType("-1");
+        setMode("csv"); // will offer AI fallback below
       }
       setStep(2);
     };
@@ -245,8 +232,7 @@ export function ImportView() {
   }, []);
 
   const onDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
-    e.preventDefault();
-    setDragging(false);
+    e.preventDefault(); setDragging(false);
     const file = e.dataTransfer.files[0];
     if (file) processFile(file);
   }, [processFile]);
@@ -257,42 +243,77 @@ export function ImportView() {
     e.target.value = "";
   };
 
-  // ── Active column map (auto or manual) ────────────────────────────────────
+  // ── AI parse trigger ───────────────────────────────────────────────────────
 
-  const effectiveColMap: ColMap = colMap ?? {
-    date:        parseInt(manualDate),
-    description: parseInt(manualDesc),
-    amount:      parseInt(manualAmount),
-    type:        parseInt(manualType),
-    credit:      -1,
-    debit:       -1,
+  const runAIParse = async (overrideFile?: File) => {
+    const f = overrideFile ?? fileObj;
+    if (!f) return;
+    setAiParsing(true);
+    setMode("ai");
+    try {
+      const form = new FormData();
+      form.append("file", f);
+
+      const res  = await authFetch("/api/v1/import/ai", { method: "POST", body: form });
+      const json = await res.json();
+      if (!json.success) throw new Error(json.error ?? "AI parsing failed");
+
+      const rows: ParsedRow[] = json.data.transactions;
+      setAiRows(rows);
+      setAiModel(json.data.model ?? "");
+      toast.success(`AI extracted ${rows.length} transactions`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "AI parsing failed");
+      setMode("csv"); // fall back to manual
+    } finally {
+      setAiParsing(false);
+    }
   };
 
-  const { valid: previewRows } = buildRows(allRows.slice(0, 10), effectiveColMap);
+  // ── Active rows for preview / import ──────────────────────────────────────
+
+  const effectiveColMap: ColMap = colMap ?? {
+    date: parseInt(manualDate), description: parseInt(manualDesc),
+    amount: parseInt(manualAmount), type: parseInt(manualType),
+    credit: -1, debit: -1, mintCategory: -1, mintDates: false,
+  };
+
+  const csvPreviewRows = mode === "csv" ? buildRows(allRows.slice(0, 10), effectiveColMap).valid : [];
+  const previewRows    = mode === "ai"  ? aiRows.slice(0, 10) : csvPreviewRows;
 
   // ── Import ─────────────────────────────────────────────────────────────────
 
   const handleImport = async () => {
     if (!accountId) { toast.error("Please select an account"); return; }
-    const { valid, invalid } = buildRows(allRows, effectiveColMap);
-    if (valid.length === 0) { toast.error("No valid rows to import"); return; }
+
+    let validRows: ParsedRow[];
+    let invalidCount = 0;
+
+    if (mode === "ai") {
+      validRows = aiRows;
+    } else {
+      const { valid, invalid } = buildRows(allRows, effectiveColMap);
+      validRows    = valid;
+      invalidCount = invalid;
+    }
+
+    if (validRows.length === 0) { toast.error("No valid rows to import"); return; }
 
     setImporting(true);
     try {
       const body: Record<string, unknown> = {
-        transactions: valid,
+        transactions: validRows,
         accountId:    parseInt(accountId),
       };
       if (categoryId) body.categoryId = parseInt(categoryId);
 
       const res  = await authFetch("/api/v1/transactions/import", {
-        method: "POST",
-        body:   JSON.stringify(body),
+        method: "POST", body: JSON.stringify(body),
       });
       const json = await res.json();
       if (!json.success) throw new Error(json.error ?? "Import failed");
 
-      setImportResult({ imported: json.data.imported, skipped: (json.data.skipped ?? 0) + invalid });
+      setImportResult({ imported: json.data.imported, skipped: (json.data.skipped ?? 0) + invalidCount });
       setStep(3);
       toast.success(`Imported ${json.data.imported} transactions`);
     } catch (err) {
@@ -305,18 +326,16 @@ export function ImportView() {
   // ── Reset ──────────────────────────────────────────────────────────────────
 
   const reset = () => {
-    setStep(1);
-    setFileName("");
-    setHeaders([]);
-    setAllRows([]);
-    setColMap(null);
-    setAutoDetected(false);
-    setAccountId("");
-    setCategoryId("");
-    setImportResult(null);
+    setStep(1); setMode("csv"); setFileName(""); setFileObj(null);
+    setHeaders([]); setAllRows([]); setColMap(null);
+    setAutoDetected(false); setIsMint(false);
+    setAiRows([]); setAiModel("");
+    setAccountId(""); setCategoryId(""); setImportResult(null);
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────
+
+  const lowConfidenceCount = aiRows.filter(r => (r.confidence ?? 1) < 0.7).length;
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
@@ -326,7 +345,7 @@ export function ImportView() {
         <Upload className="h-5 w-5" style={{ color: "hsl(var(--ll-accent))" }} />
         <div>
           <h1 className="text-lg font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>Import Transactions</h1>
-          <p className="text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>Upload a CSV file to bulk-import transactions</p>
+          <p className="text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>Upload a CSV or PDF bank statement</p>
         </div>
       </div>
 
@@ -344,11 +363,9 @@ export function ImportView() {
               {step > s ? <Check className="h-3.5 w-3.5" /> : s}
             </div>
             <span className="text-xs font-medium" style={{ color: step === s ? "hsl(var(--ll-text-primary))" : "hsl(var(--ll-text-muted))" }}>
-              {s === 1 ? "Upload" : s === 2 ? "Map columns" : "Done"}
+              {s === 1 ? "Upload" : s === 2 ? "Review" : "Done"}
             </span>
-            {idx < 2 && (
-              <ChevronRight className="h-3.5 w-3.5 mx-1" style={{ color: "hsl(var(--ll-text-muted))" }} />
-            )}
+            {idx < 2 && <ChevronRight className="h-3.5 w-3.5 mx-1" style={{ color: "hsl(var(--ll-text-muted))" }} />}
           </div>
         ))}
       </div>
@@ -367,57 +384,109 @@ export function ImportView() {
             onDrop={onDrop}
             onClick={() => fileRef.current?.click()}
           >
-            <div
-              className="flex h-12 w-12 items-center justify-center rounded-xl"
-              style={{ background: "hsl(var(--ll-accent) / 0.12)" }}
-            >
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl" style={{ background: "hsl(var(--ll-accent) / 0.12)" }}>
               <Upload className="h-6 w-6" style={{ color: "hsl(var(--ll-accent))" }} />
             </div>
             <div className="text-center">
               <p className="text-sm font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
-                Drop your CSV here, or click to browse
+                Drop your bank file here, or click to browse
               </p>
               <p className="mt-1 text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>
-                Supports bank export CSVs with date, description and amount columns
+                CSV or PDF · Any bank · AI-powered extraction
               </p>
             </div>
-            <input
-              ref={fileRef}
-              type="file"
-              accept=".csv"
-              className="hidden"
-              onChange={onFileChange}
-            />
+            <input ref={fileRef} type="file" accept=".csv,.pdf" className="hidden" onChange={onFileChange} />
+          </div>
+
+          <div className="mt-4 flex items-center gap-2 rounded-lg px-3 py-2.5" style={{ background: "hsl(var(--ll-accent) / 0.06)" }}>
+            <Sparkles className="h-3.5 w-3.5 flex-shrink-0" style={{ color: "hsl(var(--ll-accent))" }} />
+            <p className="text-xs" style={{ color: "hsl(var(--ll-text-secondary))" }}>
+              PDF statements are parsed automatically using AI — no column mapping needed.
+            </p>
           </div>
         </div>
       )}
 
-      {/* ── Step 2: Map columns + preview ── */}
+      {/* ── Step 2: Review ── */}
       {step === 2 && (
         <div className="space-y-4">
 
-          {/* Auto-detect notice or manual mapping */}
+          {/* Status bar */}
           <div className="ll-card p-5">
             <div className="flex items-start gap-3">
-              {autoDetected ? (
+              {mode === "ai" && aiParsing ? (
+                <div className="mt-0.5 h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" style={{ color: "hsl(var(--ll-accent))" }} />
+              ) : mode === "ai" && aiRows.length > 0 ? (
+                <Sparkles className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "hsl(var(--ll-accent))" }} />
+              ) : autoDetected ? (
                 <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-400" />
               ) : (
                 <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
               )}
-              <div>
-                <p className="text-sm font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
-                  {autoDetected ? "Columns auto-detected" : "Map columns manually"}
-                </p>
-                <p className="text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>
-                  {autoDetected
-                    ? `File: ${fileName} · ${allRows.length} data rows found`
-                    : `File: ${fileName} · Could not auto-detect columns. Please map them below.`}
+              <div className="flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-sm font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
+                    {mode === "ai" && aiParsing
+                      ? "AI is reading your statement…"
+                      : mode === "ai" && aiRows.length > 0
+                        ? `AI extracted ${aiRows.length} transactions`
+                        : autoDetected
+                          ? "Columns auto-detected"
+                          : "Map columns manually"}
+                  </p>
+                  {isMint && (
+                    <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "hsl(var(--ll-accent) / 0.15)", color: "hsl(var(--ll-accent))" }}>
+                      Mint CSV
+                    </span>
+                  )}
+                  {mode === "ai" && aiModel && (
+                    <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "hsl(var(--ll-accent) / 0.15)", color: "hsl(var(--ll-accent))" }}>
+                      {aiModel}
+                    </span>
+                  )}
+                </div>
+                <p className="text-xs truncate" style={{ color: "hsl(var(--ll-text-muted))", maxWidth: "260px" }}>
+                  {fileName.length > 40 ? fileName.slice(0, 37) + "…" : fileName}
+                  {mode === "csv" && allRows.length > 0 && ` · ${allRows.length} rows`}
+                  {mode === "ai" && aiRows.length > 0 && lowConfidenceCount > 0
+                    && ` · ${lowConfidenceCount} low-confidence row${lowConfidenceCount !== 1 ? "s" : ""}`}
+                  {isMint && " · categories will be preserved"}
                 </p>
               </div>
+
+              {/* Offer AI parse for CSVs that failed auto-detect or as upgrade */}
+              {mode === "csv" && !aiParsing && aiRows.length === 0 && (
+                <button
+                  onClick={() => runAIParse()}
+                  className="flex-shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium text-white"
+                  style={{ background: "hsl(var(--ll-accent))" }}
+                >
+                  <Sparkles className="h-3 w-3" />
+                  Try AI
+                </button>
+              )}
+
+              {aiParsing && (
+                <div className="flex-shrink-0 flex items-center gap-1.5 text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>
+                  <div className="h-3 w-3 animate-spin rounded-full border border-current border-t-transparent" />
+                  Parsing…
+                </div>
+              )}
             </div>
           </div>
 
-          {!autoDetected && (
+          {/* Low-confidence warning */}
+          {mode === "ai" && lowConfidenceCount > 0 && (
+            <div className="flex items-center gap-2 rounded-lg px-3 py-2.5" style={{ background: "hsl(38 92% 50% / 0.08)", border: "1px solid hsl(38 92% 50% / 0.2)" }}>
+              <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-amber-400" />
+              <p className="text-xs" style={{ color: "hsl(var(--ll-text-secondary))" }}>
+                {lowConfidenceCount} row{lowConfidenceCount !== 1 ? "s are" : " is"} flagged low-confidence. Review them before importing.
+              </p>
+            </div>
+          )}
+
+          {/* Manual column mapping (CSV only, when auto-detect failed) */}
+          {mode === "csv" && !autoDetected && aiRows.length === 0 && (
             <div className="ll-card p-5">
               <h2 className="mb-4 text-sm font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>Column mapping</h2>
               <div className="grid grid-cols-2 gap-3">
@@ -428,14 +497,8 @@ export function ImportView() {
                   { label: "Type column (opt.)", value: manualType,   setter: setManualType },
                 ].map(({ label, value, setter }) => (
                   <div key={label}>
-                    <label className="mb-1 block text-xs font-medium" style={{ color: "hsl(var(--ll-text-secondary))" }}>
-                      {label}
-                    </label>
-                    <select
-                      className="ll-input"
-                      value={value}
-                      onChange={(e) => setter(e.target.value)}
-                    >
+                    <label className="mb-1 block text-xs font-medium" style={{ color: "hsl(var(--ll-text-secondary))" }}>{label}</label>
+                    <select className="ll-input" value={value} onChange={e => setter(e.target.value)}>
                       {label.includes("opt") && <option value="-1">— not present —</option>}
                       {headers.map((h, idx) => (
                         <option key={idx} value={String(idx)}>{h || `Column ${idx + 1}`}</option>
@@ -458,26 +521,26 @@ export function ImportView() {
                 {accountsLoading ? (
                   <div className="ll-input text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>Loading…</div>
                 ) : (
-                  <select className="ll-input" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+                  <select className="ll-input" value={accountId} onChange={e => setAccountId(e.target.value)}>
                     <option value="">Select account…</option>
-                    {accounts.map((a) => (
-                      <option key={a.id} value={String(a.id)}>{a.name}</option>
+                    {accounts.map(a => (
+                      <option key={a.id} value={String(a.id)}>
+                        {a.name} — {accountTypeLabel(a.type)}
+                      </option>
                     ))}
                   </select>
                 )}
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium" style={{ color: "hsl(var(--ll-text-secondary))" }}>
-                  Default category <span style={{ color: "hsl(var(--ll-text-muted))" }}>(optional)</span>
+                  Default category <span style={{ color: "hsl(var(--ll-text-muted))" }}>(optional{mode === "ai" ? " — AI suggests categories per row" : ""})</span>
                 </label>
                 {categoriesLoading ? (
                   <div className="ll-input text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>Loading…</div>
                 ) : (
-                  <select className="ll-input" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+                  <select className="ll-input" value={categoryId} onChange={e => setCategoryId(e.target.value)}>
                     <option value="">Auto-select first category</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={String(c.id)}>{c.name}</option>
-                    ))}
+                    {categories.map(c => <option key={c.id} value={String(c.id)}>{c.name}</option>)}
                   </select>
                 )}
               </div>
@@ -496,71 +559,74 @@ export function ImportView() {
                 <table className="w-full text-xs">
                   <thead>
                     <tr style={{ borderBottom: "1px solid hsl(var(--ll-border))" }}>
-                      {["Date", "Description", "Amount", "Type"].map((h) => (
-                        <th
-                          key={h}
-                          className="px-4 py-2 text-left font-medium"
-                          style={{ color: "hsl(var(--ll-text-muted))" }}
-                        >
-                          {h}
-                        </th>
+                      {["Date", "Description", "Amount", "Type",
+                        ...(isMint || mode === "ai" ? ["Category"] : []),
+                        ...(mode === "ai" ? ["Confidence"] : [])
+                      ].map(h => (
+                        <th key={h} className="px-4 py-2 text-left font-medium" style={{ color: "hsl(var(--ll-text-muted))" }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {previewRows.map((row, i) => (
-                      <tr
-                        key={i}
-                        style={{ borderBottom: i < previewRows.length - 1 ? "1px solid hsl(var(--ll-border) / 0.5)" : undefined }}
-                      >
-                        <td className="px-4 py-2" style={{ color: "hsl(var(--ll-text-secondary))" }}>{row.date}</td>
-                        <td className="px-4 py-2 max-w-[200px] truncate" style={{ color: "hsl(var(--ll-text-primary))" }}>{row.description}</td>
-                        <td className="px-4 py-2 font-mono" style={{ color: row.type === "income" ? "hsl(var(--ll-income))" : "hsl(var(--ll-expense))" }}>
-                          {row.type === "expense" ? "-" : "+"}{row.amount.toFixed(2)}
-                        </td>
-                        <td className="px-4 py-2 capitalize" style={{ color: row.type === "income" ? "hsl(var(--ll-income))" : "hsl(var(--ll-expense))" }}>
-                          {row.type}
-                        </td>
-                      </tr>
-                    ))}
+                    {previewRows.map((row, i) => {
+                      const lowConf = (row.confidence ?? 1) < 0.7;
+                      return (
+                        <tr key={i} style={{
+                          borderBottom: i < previewRows.length - 1 ? "1px solid hsl(var(--ll-border) / 0.5)" : undefined,
+                          background: lowConf ? "hsl(38 92% 50% / 0.04)" : undefined,
+                        }}>
+                          <td className="px-4 py-2" style={{ color: "hsl(var(--ll-text-secondary))" }}>{row.date}</td>
+                          <td className="px-4 py-2 max-w-[160px] truncate" style={{ color: "hsl(var(--ll-text-primary))" }}>{row.description}</td>
+                          <td className="px-4 py-2 font-mono" style={{ color: row.type === "income" ? "hsl(var(--ll-income))" : "hsl(var(--ll-expense))" }}>
+                            {row.type === "expense" ? "-" : "+"}{row.amount.toFixed(2)}
+                          </td>
+                          <td className="px-4 py-2 capitalize" style={{ color: row.type === "income" ? "hsl(var(--ll-income))" : "hsl(var(--ll-expense))" }}>{row.type}</td>
+                          {(isMint || mode === "ai") && (
+                            <td className="px-4 py-2 max-w-[110px] truncate" style={{ color: "hsl(var(--ll-text-muted))" }}>{row.categoryName ?? "—"}</td>
+                          )}
+                          {mode === "ai" && (
+                            <td className="px-4 py-2">
+                              <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${lowConf ? "bg-amber-500/10 text-amber-400" : "bg-green-500/10 text-green-400"}`}>
+                                {Math.round((row.confidence ?? 1) * 100)}%
+                              </span>
+                            </td>
+                          )}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             </div>
           )}
 
-          {previewRows.length === 0 && (
+          {previewRows.length === 0 && !aiParsing && mode !== "ai" && (
             <div className="ll-card p-5">
               <div className="flex items-center gap-2">
                 <AlertCircle className="h-4 w-4 text-amber-400" />
                 <p className="text-sm" style={{ color: "hsl(var(--ll-text-muted))" }}>
-                  No rows could be parsed with the current column mapping.
+                  No rows could be parsed. Try AI parsing instead.
                 </p>
               </div>
             </div>
           )}
 
           <div className="flex gap-3">
-            <button
-              onClick={reset}
-              className="flex-none rounded-lg px-4 py-2 text-sm font-medium transition-colors"
-              style={{
-                background: "hsl(var(--ll-bg-elevated))",
-                color: "hsl(var(--ll-text-secondary))",
-                border: "1px solid hsl(var(--ll-border))",
-              }}
-            >
+            <button onClick={reset} className="flex-none rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+              style={{ background: "hsl(var(--ll-bg-elevated))", color: "hsl(var(--ll-text-secondary))", border: "1px solid hsl(var(--ll-border))" }}>
               Back
             </button>
             <button
               onClick={handleImport}
-              disabled={importing || previewRows.length === 0 || !accountId}
+              disabled={importing || aiParsing || previewRows.length === 0 || !accountId}
               className="flex-1 rounded-lg py-2 text-sm font-medium text-white disabled:opacity-50 transition-colors"
               style={{ background: "hsl(var(--ll-accent))" }}
             >
               {importing
                 ? "Importing…"
-                : `Import ${allRows.length} transaction${allRows.length !== 1 ? "s" : ""}`}
+                : mode === "ai"
+                  ? `Import ${aiRows.length} transaction${aiRows.length !== 1 ? "s" : ""}`
+                  : `Import ${allRows.length} transaction${allRows.length !== 1 ? "s" : ""}`}
             </button>
           </div>
         </div>
@@ -570,40 +636,22 @@ export function ImportView() {
       {step === 3 && importResult && (
         <div className="ll-card p-8">
           <div className="flex flex-col items-center gap-4 text-center">
-            <div
-              className="flex h-14 w-14 items-center justify-center rounded-2xl"
-              style={{ background: "hsl(var(--ll-income) / 0.12)" }}
-            >
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: "hsl(var(--ll-income) / 0.12)" }}>
               <Check className="h-7 w-7" style={{ color: "hsl(var(--ll-income))" }} />
             </div>
             <div>
-              <p className="text-base font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>
-                Import complete
-              </p>
+              <p className="text-base font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>Import complete</p>
               <p className="mt-1 text-sm" style={{ color: "hsl(var(--ll-text-secondary))" }}>
                 Successfully imported <span className="font-semibold" style={{ color: "hsl(var(--ll-income))" }}>{importResult.imported}</span> transaction{importResult.imported !== 1 ? "s" : ""}
-                {importResult.skipped > 0 && (
-                  <> &middot; <span className="font-semibold" style={{ color: "hsl(var(--ll-text-muted))" }}>{importResult.skipped}</span> skipped</>
-                )}
+                {importResult.skipped > 0 && <> &middot; <span className="font-semibold" style={{ color: "hsl(var(--ll-text-muted))" }}>{importResult.skipped}</span> skipped</>}
               </p>
             </div>
             <div className="flex gap-3 w-full">
-              <button
-                onClick={reset}
-                className="flex-1 rounded-lg py-2 text-sm font-medium text-white transition-colors"
-                style={{ background: "hsl(var(--ll-accent))" }}
-              >
+              <button onClick={reset} className="flex-1 rounded-lg py-2 text-sm font-medium text-white transition-colors" style={{ background: "hsl(var(--ll-accent))" }}>
                 Import another file
               </button>
-              <a
-                href="/transactions"
-                className="flex-1 rounded-lg py-2 text-sm font-medium text-center transition-colors"
-                style={{
-                  background: "hsl(var(--ll-bg-elevated))",
-                  color: "hsl(var(--ll-text-secondary))",
-                  border: "1px solid hsl(var(--ll-border))",
-                }}
-              >
+              <a href="/transactions" className="flex-1 rounded-lg py-2 text-sm font-medium text-center transition-colors"
+                style={{ background: "hsl(var(--ll-bg-elevated))", color: "hsl(var(--ll-text-secondary))", border: "1px solid hsl(var(--ll-border))" }}>
                 View transactions
               </a>
             </div>
@@ -611,12 +659,11 @@ export function ImportView() {
         </div>
       )}
 
-      {/* File info bar */}
       {step === 2 && (
         <div className="flex items-center gap-2 px-1">
           <FileText className="h-3.5 w-3.5" style={{ color: "hsl(var(--ll-text-muted))" }} />
-          <span className="text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>
-            {fileName} · {allRows.length} rows
+          <span className="text-xs truncate max-w-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>
+            {fileName.length > 50 ? fileName.slice(0, 47) + "…" : fileName}
           </span>
         </div>
       )}

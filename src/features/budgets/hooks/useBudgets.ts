@@ -23,7 +23,7 @@ export function useBudgets() {
   });
 
   const upsertBudget = useMutation({
-    mutationFn: async (payload: { categoryId: number; amount: number }) => {
+    mutationFn: async (payload: { categoryId: number; amount: number; rollover?: boolean }) => {
       const res  = await authFetch("/api/v1/budgets", { method: "POST", body: JSON.stringify(payload) });
       const json = await res.json();
       if (!json.success) throw new Error(json.error);
@@ -47,7 +47,7 @@ export function useBudgets() {
     budgets,
     loading,
     error: error ? (error as Error).message : null,
-    upsertBudget: (p: Parameters<typeof upsertBudget.mutateAsync>[0]) => upsertBudget.mutateAsync(p),
+    upsertBudget: (p: { categoryId: number; amount: number; rollover?: boolean }) => upsertBudget.mutateAsync(p),
     deleteBudget: (id: number) => deleteBudget.mutateAsync(id),
   };
 }

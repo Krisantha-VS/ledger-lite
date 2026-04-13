@@ -40,6 +40,14 @@ export async function GET(req: Request) {
       if (p.get("dateTo"))   where.date.lte = new Date(p.get("dateTo")!);
     }
 
+    if (p.get("search")) {
+      const s = p.get("search")!;
+      where.OR = [
+        { note:     { contains: s, mode: "insensitive" } },
+        { category: { name: { contains: s, mode: "insensitive" } } },
+      ];
+    }
+
     const page    = Math.max(1, parseInt(p.get("page") ?? "1"));
     const perPage = Math.min(100, Math.max(1, parseInt(p.get("perPage") ?? "20")));
 

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Plus, ArrowRightLeft, Search, Filter, Download, ChevronLeft, ChevronRight, MoreHorizontal, Calendar, Tag, CreditCard } from "lucide-react";
+import { CategoryIcon } from "@/components/ui/category-icon";
 import { useTransactions } from "@/features/transactions/hooks/useTransactions";
 import { TransactionModal } from "../transaction-modal";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -187,7 +188,7 @@ function TransactionRowV2({ tx, onEdit }: { tx: Transaction; onEdit: (tx: Transa
       <td className="px-6 py-4">
          <div className="flex items-center gap-3">
             <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-[hsl(var(--v2-border))] bg-[hsl(var(--v2-bg))] text-sm shadow-sm">
-               {tx.categoryIcon ?? "💸"}
+               <CategoryIcon icon={tx.categoryIcon ?? "💸"} size={14} />
             </div>
             <div className="min-w-0">
                <p className="truncate text-xs font-bold text-[hsl(var(--v2-text-primary))]">{tx.note ?? tx.categoryName ?? "Transaction"}</p>

@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ArrowRightLeft } from "lucide-react";
+import { CategoryIcon } from "@/components/ui/category-icon";
 import type { TransactionType } from "@/shared/types";
 
 export function RecentTransactions() {
@@ -55,7 +56,7 @@ function TransactionItem({ tx }: { tx: import("@/shared/types").Transaction }) {
         className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-sm"
         style={{ background: "hsl(var(--ll-accent) / 0.08)" }}
       >
-        {tx.categoryIcon ?? "💸"}
+        <CategoryIcon icon={tx.categoryIcon ?? "💸"} size={14} />
       </div>
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>

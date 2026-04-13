@@ -2,6 +2,7 @@
 
 import { useState, memo } from "react";
 import { Trash2, Pencil } from "lucide-react";
+import { CategoryIcon } from "@/components/ui/category-icon";
 import { formatCurrency, formatDate } from "@/shared/lib/formatters";
 import { Badge } from "@/components/ui/badge";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -31,7 +32,7 @@ export const TransactionRow = memo(function TransactionRow({
         className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-sm"
         style={{ background: "hsl(var(--ll-accent) / 0.08)" }}
       >
-        {tx.categoryIcon ?? "💸"}
+        <CategoryIcon icon={tx.categoryIcon ?? "💸"} size={14} />
       </div>
 
       <div className="min-w-0 flex-1">

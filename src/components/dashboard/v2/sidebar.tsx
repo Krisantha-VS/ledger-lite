@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Wallet, LayoutDashboard, ArrowUpDown, PiggyBank,
-  Target, BarChart3, Settings, Tag, Upload, ChevronRight
+  Target, BarChart3, Settings, Tag, Upload, ChevronRight, Repeat2,
 } from "lucide-react";
 import { cn } from "@/shared/lib/utils";
 
@@ -12,7 +12,8 @@ const NAV = [
   { href: "/v2",           label: "Overview",     icon: LayoutDashboard },
   { href: "/transactions", label: "Transactions", icon: ArrowUpDown },
   { href: "/accounts",     label: "Accounts",     icon: Wallet },
-  { href: "/budgets",      label: "Budgets",      icon: PiggyBank },
+  { href: "/budgets",       label: "Budgets",        icon: PiggyBank },
+  { href: "/subscriptions", label: "Subscriptions", icon: Repeat2 },
   { href: "/goals",        label: "Goals",        icon: Target },
   { href: "/reports",      label: "Analysis",     icon: BarChart3 },
 ];

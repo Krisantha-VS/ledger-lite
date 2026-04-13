@@ -3,10 +3,11 @@ import { ok, fail, handleError, getUserId } from "@/lib/api";
 import { z } from "zod";
 
 const RowSchema = z.object({
-  date:        z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD"),
-  description: z.string().max(300),
-  amount:      z.number().positive("amount must be positive"),
-  type:        z.enum(["income", "expense"]),
+  date:         z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "date must be YYYY-MM-DD"),
+  description:  z.string().max(300),
+  amount:       z.number().positive("amount must be positive"),
+  type:         z.enum(["income", "expense"]),
+  categoryName: z.string().max(100).optional(),
 });
 
 const ImportSchema = z.object({
@@ -32,7 +33,7 @@ export async function POST(req: Request) {
       if (!cat) return fail("Category not found", 404);
     }
 
-    // Determine the fallback category — first category for the user, or the first system category
+    // Determine fallback category
     let fallbackCategoryId = body.categoryId;
     if (fallbackCategoryId === undefined) {
       const cat = await db.category.findFirst({
@@ -43,19 +44,48 @@ export async function POST(req: Request) {
       fallbackCategoryId = cat.id;
     }
 
-    const data = body.transactions.map((row) => ({
-      userId,
-      accountId:   body.accountId,
-      categoryId:  fallbackCategoryId!,
-      type:        row.type as "income" | "expense",
-      amount:      row.amount,
-      date:        new Date(row.date + "T00:00:00Z"),
-      note:        row.description.slice(0, 300) || null,
-      isRecurring: false,
-      recurrence:  null,
-      nextDue:     null,
-      transferToId: null,
-    }));
+    // Resolve per-row categoryNames (Mint import)
+    const uniqueNames = [
+      ...new Set(body.transactions.map((r) => r.categoryName).filter(Boolean)),
+    ] as string[];
+
+    const catNameToId = new Map<string, number>();
+
+    if (uniqueNames.length > 0) {
+      // Load all user categories once
+      const existing = await db.category.findMany({ where: { userId } });
+      for (const c of existing) catNameToId.set(c.name.toLowerCase(), c.id);
+
+      // Create any missing categories
+      for (const name of uniqueNames) {
+        if (!catNameToId.has(name.toLowerCase())) {
+          const created = await db.category.create({
+            data: { userId, name, icon: "🏷️", colour: "#6366f1", type: "expense" },
+          });
+          catNameToId.set(name.toLowerCase(), created.id);
+        }
+      }
+    }
+
+    const data = body.transactions.map((row) => {
+      let categoryId = fallbackCategoryId!;
+      if (row.categoryName) {
+        categoryId = catNameToId.get(row.categoryName.toLowerCase()) ?? fallbackCategoryId!;
+      }
+      return {
+        userId,
+        accountId:    body.accountId,
+        categoryId,
+        type:         row.type as "income" | "expense",
+        amount:       row.amount,
+        date:         new Date(row.date + "T00:00:00Z"),
+        note:         row.description.slice(0, 300) || null,
+        isRecurring:  false,
+        recurrence:   null,
+        nextDue:      null,
+        transferToId: null,
+      };
+    });
 
     const result = await db.transaction.createMany({ data });
 
