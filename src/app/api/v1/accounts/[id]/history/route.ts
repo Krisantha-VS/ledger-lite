@@ -1,10 +1,11 @@
 import { db } from "@/lib/db";
 import { ok, handleError, getUserId } from "@/lib/api";
 
-export async function GET(req: Request, { params }: { params: { id: string } }) {
+export async function GET(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const userId    = await getUserId(req);
-    const accountId = parseInt(params.id);
+    const { id }    = await params;
+    const accountId = parseInt(id);
 
     // Verify ownership
     const account = await db.account.findFirst({ where: { id: accountId, userId } });
