@@ -1,11 +1,13 @@
 "use client";
 
 import { TrendingUp, TrendingDown, DollarSign, AlertTriangle, Landmark } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useDashboardSummary, useNetWorth } from "@/features/summary/hooks/useSummary";
 import { formatCurrency } from "@/shared/lib/formatters";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export function KpiCards() {
+  const router = useRouter();
   const { summary, loading }           = useDashboardSummary();
   const { data: netWorthData, loading: nwLoading } = useNetWorth();
 
@@ -57,17 +59,24 @@ export function KpiCards() {
 
   return (
     <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
-      {cards.map(c => (
-        <div key={c.label} className="ll-card flex items-center gap-3 overflow-hidden p-4">
-          <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg" style={{ background: c.bg }}>
-            <c.icon className="h-4 w-4" style={{ color: c.color }} />
+      {cards.map(c => {
+        const isBudgetsOver = c.label === "Budgets Over";
+        return (
+          <div
+            key={c.label}
+            className={`ll-card flex items-center gap-3 overflow-hidden p-4${isBudgetsOver ? " cursor-pointer hover:ring-1 hover:ring-[hsl(var(--ll-border))]" : ""}`}
+            onClick={isBudgetsOver ? () => router.push("/budgets") : undefined}
+          >
+            <div className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-lg" style={{ background: c.bg }}>
+              <c.icon className="h-4 w-4" style={{ color: c.color }} />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[11px] font-medium" style={{ color: "hsl(var(--ll-text-muted))" }}>{c.label}</p>
+              <p className="ll-mono truncate text-xs font-bold" title={c.value} style={{ color: c.color }}>{c.value}</p>
+            </div>
           </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-[11px] font-medium" style={{ color: "hsl(var(--ll-text-muted))" }}>{c.label}</p>
-            <p className="ll-mono truncate text-xs font-bold" title={c.value} style={{ color: c.color }}>{c.value}</p>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

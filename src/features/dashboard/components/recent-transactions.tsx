@@ -59,14 +59,14 @@ function TransactionItem({ tx }: { tx: import("@/shared/types").Transaction }) {
         <CategoryIcon icon={tx.categoryIcon ?? "💸"} size={14} />
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
+        <p className="truncate text-xs font-medium" title={tx.note ?? tx.categoryName ?? "Transaction"} style={{ color: "hsl(var(--ll-text-primary))" }}>
           {tx.note ?? tx.categoryName ?? "Transaction"}
         </p>
         <p className="text-[11px]" style={{ color: "hsl(var(--ll-text-muted))" }}>
           {formatDate(tx.date, "short")} · <Badge variant={tx.type}>{tx.type}</Badge>
         </p>
       </div>
-      <span className="ll-mono text-xs font-semibold" style={{ color: typeColor[tx.type] }}>
+      <span className="ll-mono text-xs font-semibold" title={formatCurrency(tx.amount)} style={{ color: typeColor[tx.type] }}>
         {sign}{formatCurrency(tx.amount)}
       </span>
     </div>

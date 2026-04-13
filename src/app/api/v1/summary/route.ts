@@ -8,7 +8,7 @@ export async function GET(req: Request) {
     const type   = url.searchParams.get("type");
 
     if (type === "monthly")    return ok(await monthlySummary(userId, parseInt(url.searchParams.get("months") ?? "12")));
-    if (type === "categories") return ok(await categoryBreakdown(userId, url.searchParams.get("month") ?? undefined));
+    if (type === "categories") return ok(await categoryBreakdown(userId, url.searchParams.get("month") ?? undefined, (url.searchParams.get("txType") as "income" | "expense") ?? "expense"));
     if (type === "dashboard")  return ok(await dashboardSummary(userId));
     if (type === "networth")   return ok(await netWorthSummary(userId));
 
@@ -30,7 +30,7 @@ async function monthlySummary(userId: string, months: number) {
   return rows.map(r => ({ ...r, net: r.income - r.expenses }));
 }
 
-async function categoryBreakdown(userId: string, month?: string) {
+async function categoryBreakdown(userId: string, month?: string, txType: "income" | "expense" = "expense") {
   const now   = new Date();
   const [y, m] = month
     ? month.split("-").map(Number)
@@ -45,7 +45,7 @@ async function categoryBreakdown(userId: string, month?: string) {
     FROM "Category" c
     LEFT JOIN "Transaction" t
       ON t."categoryId"=c.id AND t."userId"=${userId}
-      AND t.type='expense' AND t.date BETWEEN ${start} AND ${end}
+      AND t.type=${txType} AND t.date BETWEEN ${start} AND ${end}
     WHERE c."userId"=${userId}
     GROUP BY c.id HAVING COALESCE(SUM(t.amount),0)>0
     ORDER BY total DESC

@@ -36,7 +36,7 @@ export const TransactionRow = memo(function TransactionRow({
       </div>
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-xs font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
+        <p className="truncate text-xs font-medium" title={tx.note ?? tx.categoryName} style={{ color: "hsl(var(--ll-text-primary))" }}>
           {tx.note ?? tx.categoryName}
         </p>
         <div className="flex items-center gap-1.5">
@@ -52,7 +52,7 @@ export const TransactionRow = memo(function TransactionRow({
         </div>
       </div>
 
-      <span className="ll-mono text-xs font-semibold" style={{ color: signColor[tx.type] }}>
+      <span className="ll-mono text-xs font-semibold" title={formatCurrency(tx.amount)} style={{ color: signColor[tx.type] }}>
         {sign[tx.type]}{formatCurrency(tx.amount)}
       </span>
 

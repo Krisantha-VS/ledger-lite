@@ -14,21 +14,30 @@ import type { Transaction } from "@/shared/types";
 const TYPES = ["all", "income", "expense", "transfer"];
 
 export function TransactionsView() {
-  const [page, setPage]     = useState(1);
-  const [filter, setFilter] = useState("");
-  const [search, setSearch] = useState("");
-  const [debouncedSearch, setDebouncedSearch] = useState("");
-  const [showCreate, setShowCreate] = useState(false);
-  const [editTx, setEditTx]         = useState<Transaction | null>(null);
-
   const searchParams = useSearchParams();
   const router       = useRouter();
   const urlAccountId = searchParams.get("accountId") ? Number(searchParams.get("accountId")) : undefined;
 
+  const [page, setPage]     = useState(1);
+  const [filter, setFilter] = useState(() => searchParams.get("type") ?? "");
+  const [search, setSearch] = useState(() => searchParams.get("search") ?? "");
+  const [debouncedSearch, setDebouncedSearch] = useState(() => searchParams.get("search") ?? "");
+  const [showCreate, setShowCreate] = useState(false);
+  const [editTx, setEditTx]         = useState<Transaction | null>(null);
+
+  // Sync debouncedSearch to URL after 300ms
   useEffect(() => {
-    const t = setTimeout(() => { setDebouncedSearch(search); setPage(1); }, 300);
+    const t = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(1);
+      const params = new URLSearchParams();
+      if (searchParams.get("accountId")) params.set("accountId", searchParams.get("accountId")!);
+      if (filter) params.set("type", filter);
+      if (search) params.set("search", search);
+      router.replace("/transactions?" + params.toString());
+    }, 300);
     return () => clearTimeout(t);
-  }, [search]);
+  }, [search]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useKeyboardShortcuts({ onNewTransaction: () => setShowCreate(true) });
 
@@ -81,7 +90,16 @@ export function TransactionsView() {
         {TYPES.map(t => (
           <button
             key={t}
-            onClick={() => { setFilter(t === "all" ? "" : t); setPage(1); }}
+            onClick={() => {
+              const newFilter = t === "all" ? "" : t;
+              setFilter(newFilter);
+              setPage(1);
+              const params = new URLSearchParams();
+              if (searchParams.get("accountId")) params.set("accountId", searchParams.get("accountId")!);
+              if (newFilter) params.set("type", newFilter);
+              if (debouncedSearch) params.set("search", debouncedSearch);
+              router.replace("/transactions?" + params.toString());
+            }}
             className="cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-all"
             style={{
               background: (filter === t || (t === "all" && !filter)) ? "hsl(var(--ll-accent))" : "hsl(var(--ll-bg-surface))",

@@ -34,10 +34,11 @@ export function useMonthlySummary(months = 12) {
   return { rows, loading };
 }
 
-export function useCategoryBreakdown(month?: string) {
+export function useCategoryBreakdown(month?: string, txType?: "income" | "expense") {
+  const resolvedType = txType ?? "expense";
   const { data: rows = [], isLoading: loading } = useQuery<CategoryBreakdown[]>({
-    queryKey: ["summary", "categories", month],
-    queryFn: () => fetchSummary("categories", month ? `&month=${month}` : ""),
+    queryKey: ["summary", "categories", month, resolvedType],
+    queryFn: () => fetchSummary("categories", `${month ? `&month=${month}` : ""}&txType=${resolvedType}`),
   });
   return { rows, loading };
 }

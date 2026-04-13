@@ -63,6 +63,33 @@ export function BudgetsView() {
         </button>
       </div>
 
+      {/* QW3: Summary stats bar */}
+      {!loading && budgets.length > 0 && (() => {
+        const totalLimit = budgets.reduce((s, b) => s + (b.effectiveAmount ?? Number(b.amount)), 0);
+        const totalSpent = budgets.reduce((s, b) => s + (b.spent ?? 0), 0);
+        const overCount  = budgets.filter(b => (b.spent ?? 0) > (b.effectiveAmount ?? Number(b.amount))).length;
+        return (
+          <div className="flex flex-wrap gap-4 rounded-xl p-3" style={{ background: "hsl(var(--ll-bg-surface))" }}>
+            {[
+              { label: "Budgets",     value: String(budgets.length) },
+              { label: "Total limit", value: formatCurrency(totalLimit) },
+              { label: "Spent",       value: formatCurrency(totalSpent) },
+              { label: "Over limit",  value: String(overCount), accent: overCount > 0 },
+            ].map(chip => (
+              <div key={chip.label} className="flex flex-col">
+                <span className="text-[10px]" style={{ color: "hsl(var(--ll-text-muted))" }}>{chip.label}</span>
+                <span
+                  className="text-sm font-semibold ll-mono"
+                  style={{ color: chip.accent !== undefined ? (chip.accent ? "hsl(var(--ll-accent))" : "hsl(var(--ll-income))") : "hsl(var(--ll-text-primary))" }}
+                >
+                  {chip.value}
+                </span>
+              </div>
+            ))}
+          </div>
+        );
+      })()}
+
       {loading ? (
         <div className="space-y-2">
           {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}
@@ -82,17 +109,28 @@ export function BudgetsView() {
         <div className="space-y-2">
           {budgets.map(b => {
             const effective = b.effectiveAmount ?? Number(b.amount);
-            const pct  = Math.min(100, ((b.spent ?? 0) / effective) * 100);
-            const over = (b.spent ?? 0) > effective;
+            const pct       = Math.min(100, ((b.spent ?? 0) / effective) * 100);
+            const over      = (b.spent ?? 0) > effective;
+            // M3: amber near-limit state
+            const nearLimit = !over && pct >= 75;
+            const barColor  = over ? "hsl(var(--ll-expense))" : nearLimit ? "hsl(38 92% 50%)" : "hsl(var(--ll-accent))";
             return (
               <div key={b.id} className="ll-card p-4">
                 <div className="flex items-center justify-between gap-2">
                   <div className="flex min-w-0 flex-1 items-center gap-2">
                     <CategoryIcon icon={b.categoryIcon ?? "📦"} size={14} />
                     <div className="min-w-0">
-                      <span className="truncate text-sm font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
-                        {b.categoryName}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className="truncate text-sm font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
+                          {b.categoryName}
+                        </span>
+                        {/* M3: nearly-at-limit badge */}
+                        {nearLimit && (
+                          <span className="shrink-0 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
+                            Nearly at limit
+                          </span>
+                        )}
+                      </div>
                       {b.rollover && (b.rolloverAmount ?? 0) > 0 && (
                         <p className="text-[10px] flex items-center gap-1" style={{ color: "hsl(var(--ll-text-muted))" }}>
                           <RefreshCw className="h-2.5 w-2.5" />
@@ -111,7 +149,8 @@ export function BudgetsView() {
                       <p className="ll-mono text-xs font-semibold" style={{ color: over ? "hsl(var(--ll-expense))" : "hsl(var(--ll-text-primary))" }}>
                         {formatCurrency(b.spent ?? 0)} <span className="font-normal" style={{ color: "hsl(var(--ll-text-muted))" }}>/ {formatCurrency(effective)}</span>
                       </p>
-                      <p className="text-[10px]" style={{ color: over ? "hsl(var(--ll-expense))" : "hsl(var(--ll-text-muted))" }}>
+                      {/* M3: remaining text uses amber when near limit */}
+                      <p className="text-[10px]" style={{ color: over ? "hsl(var(--ll-expense))" : nearLimit ? "hsl(38 92% 50%)" : "hsl(var(--ll-text-muted))" }}>
                         {over ? `${Math.round(pct)}% used` : `${formatCurrency(effective - (b.spent ?? 0))} left`}
                       </p>
                     </div>
@@ -128,9 +167,18 @@ export function BudgetsView() {
                 <div className="mt-3 h-1.5 overflow-hidden rounded-full" style={{ background: "hsl(var(--ll-border))" }}>
                   <div
                     className="h-full rounded-full transition-all duration-500"
-                    style={{ width: `${pct}%`, background: over ? "hsl(var(--ll-expense))" : "hsl(var(--ll-accent))" }}
+                    style={{ width: `${pct}%`, background: barColor }}
                   />
                 </div>
+                {/* QW4-UI: pace forecast indicator */}
+                {b.pace && b.pace.daysRemaining > 0 && (
+                  <p className="mt-1.5 text-[10px]" style={{ color: b.pace.isOnTrack ? "hsl(var(--ll-text-muted))" : "hsl(var(--ll-expense))" }}>
+                    {b.pace.isOnTrack
+                      ? `On pace · projected ${formatCurrency(b.pace.projectedEnd)} this month`
+                      : `⚠ On pace to exceed by ${formatCurrency(b.pace.projectedEnd - (b.effectiveAmount ?? Number(b.amount)))}`
+                    }
+                  </p>
+                )}
               </div>
             );
           })}

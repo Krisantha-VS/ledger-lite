@@ -47,6 +47,7 @@ export interface Transaction {
   categoryIcon?:   string;
   categoryColour?: string;
   accountName?:    string;
+  isDuplicate?:    boolean;
 }
 
 export interface Budget {
@@ -64,6 +65,12 @@ export interface Budget {
   categoryName?:   string;
   categoryColour?: string;
   categoryIcon?:   string;
+  pace?: {
+    dailyRate:     number;
+    projectedEnd:  number;
+    isOnTrack:     boolean;
+    daysRemaining: number;
+  };
 }
 
 export interface Goal {

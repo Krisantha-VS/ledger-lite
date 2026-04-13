@@ -49,16 +49,32 @@ export async function GET(req: Request) {
     });
     const spentMap = Object.fromEntries(spentRows.map(r => [r.categoryId, Number(r._sum.amount ?? 0)]));
 
+    const now          = new Date();
+    const daysInMonth  = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const daysElapsed  = now.getDate();
+
     const result = await Promise.all(budgets.map(async b => {
-      const spent          = spentMap[b.categoryId] ?? 0;
-      const rolloverAmount = b.rollover ? await computeRollover(userId, b.categoryId, Number(b.amount)) : 0;
+      const spent           = spentMap[b.categoryId] ?? 0;
+      const rolloverAmount  = b.rollover ? await computeRollover(userId, b.categoryId, Number(b.amount)) : 0;
       const effectiveAmount = Number(b.amount) + rolloverAmount;
+
+      const spentNum    = Number(spent);
+      const dailyRate   = daysElapsed > 0 ? spentNum / daysElapsed : 0;
+      const projectedEnd = Math.round(dailyRate * daysInMonth * 100) / 100;
+      const pace = {
+        dailyRate:     Math.round(dailyRate * 100) / 100,
+        projectedEnd,
+        isOnTrack:     projectedEnd <= effectiveAmount,
+        daysRemaining: daysInMonth - daysElapsed,
+      };
+
       return {
         ...b,
         amount:          Number(b.amount),
         spent,
         rolloverAmount,
         effectiveAmount,
+        pace,
         categoryName:   b.category.name,
         categoryColour: b.category.colour,
         categoryIcon:   b.category.icon,

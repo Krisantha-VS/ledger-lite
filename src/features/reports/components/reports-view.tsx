@@ -44,8 +44,9 @@ export function ReportsView() {
   const months = resolvedMonths(range);
   const catMonth = rangeEndMonth(range);
 
-  const { rows: monthly, loading: mLoading } = useMonthlySummary(months);
-  const { rows: cats,    loading: cLoading }  = useCategoryBreakdown(catMonth);
+  const { rows: monthly,    loading: mLoading } = useMonthlySummary(months);
+  const { rows: cats,       loading: cLoading } = useCategoryBreakdown(catMonth);
+  const { rows: incomeCats, loading: icLoading } = useCategoryBreakdown(catMonth, "income");
 
   const chartData = monthly.map(r => ({
     month:    formatMonth(r.month),
@@ -183,6 +184,45 @@ export function ReportsView() {
                 <div key={c.categoryId} className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <div className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: c.colour || CHART_COLORS[i % CHART_COLORS.length] }} />
+                    <span className="flex items-center gap-1 text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}><CategoryIcon icon={c.icon} size={12} /> {c.name}</span>
+                  </div>
+                  <span className="ll-mono text-xs font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
+                    {c.percentage}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Income by category — last month of selected range */}
+      <div className="ll-card p-4">
+        <p className="mb-4 text-sm font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
+          Income by Category ({formatMonth(catMonth)})
+        </p>
+        {icLoading ? (
+          <Skeleton className="h-52 w-full" />
+        ) : incomeCats.length === 0 ? (
+          <p className="py-8 text-center text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>No income data for {formatMonth(catMonth)}</p>
+        ) : (
+          <div className="flex flex-col items-center gap-4 sm:flex-row">
+            <ResponsiveContainer width={180} height={180}>
+              <PieChart>
+                <Pie data={incomeCats} dataKey="total" nameKey="name" cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={2}>
+                  {incomeCats.map((c, i) => <Cell key={c.categoryId} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                </Pie>
+                <Tooltip
+                  contentStyle={{ background: "hsl(var(--ll-bg-surface))", border: "1px solid hsl(var(--ll-border))", borderRadius: 8, fontSize: 12 }}
+                  formatter={(v: number) => formatCurrency(v)}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="flex-1 space-y-1.5">
+              {incomeCats.map((c, i) => (
+                <div key={c.categoryId} className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <div className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
                     <span className="flex items-center gap-1 text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}><CategoryIcon icon={c.icon} size={12} /> {c.name}</span>
                   </div>
                   <span className="ll-mono text-xs font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>

@@ -169,6 +169,11 @@ export function ImportView() {
   const [aiParsing, setAiParsing] = useState(false);
   const [aiModel, setAiModel]     = useState("");
 
+  // Duplicate detection
+  type RowWithDup = ParsedRow & { isDuplicate?: boolean };
+  const [rowsWithDups, setRowsWithDups] = useState<RowWithDup[]>([]);
+  const [checkedRows, setCheckedRows]   = useState<Set<number>>(new Set());
+
   // Shared
   const [accountId,  setAccountId]  = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -262,11 +267,41 @@ export function ImportView() {
       setAiRows(rows);
       setAiModel(json.data.model ?? "");
       toast.success(`AI extracted ${rows.length} transactions`);
+      await checkDuplicates(rows);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "AI parsing failed");
       setMode("csv"); // fall back to manual
     } finally {
       setAiParsing(false);
+    }
+  };
+
+  // ── Duplicate detection ────────────────────────────────────────────────────
+
+  const checkDuplicates = async (rows: ParsedRow[]) => {
+    try {
+      const res  = await authFetch("/api/v1/transactions?perPage=200");
+      const json = await res.json();
+      const existing: { amount: number; date: string }[] = json.success ? (json.data?.rows ?? []) : [];
+
+      const marked: RowWithDup[] = rows.map(row => {
+        const isDuplicate = existing.some(ex =>
+          Math.abs(ex.amount - row.amount) < 0.01 &&
+          ex.date.slice(0, 10) === row.date
+        );
+        return { ...row, isDuplicate };
+      });
+
+      setRowsWithDups(marked);
+      // Start with all non-duplicates checked; duplicates unchecked
+      const checked = new Set<number>();
+      marked.forEach((r, i) => { if (!r.isDuplicate) checked.add(i); });
+      setCheckedRows(checked);
+    } catch {
+      // If duplicate check fails, mark all as checked with no duplicates
+      const marked: RowWithDup[] = rows.map(r => ({ ...r, isDuplicate: false }));
+      setRowsWithDups(marked);
+      setCheckedRows(new Set(rows.map((_, i) => i)));
     }
   };
 
@@ -279,7 +314,13 @@ export function ImportView() {
   };
 
   const csvPreviewRows = mode === "csv" ? buildRows(allRows.slice(0, 10), effectiveColMap).valid : [];
-  const previewRows    = mode === "ai"  ? aiRows.slice(0, 10) : csvPreviewRows;
+  const aiPreviewRows  = mode === "ai"  ? (rowsWithDups.length > 0 ? rowsWithDups : aiRows) : [];
+  const previewRows    = mode === "ai"  ? aiPreviewRows.slice(0, 10) : csvPreviewRows;
+
+  // Summary counts for AI mode
+  const dupCount      = rowsWithDups.filter(r => r.isDuplicate).length;
+  const newCount      = rowsWithDups.filter(r => !r.isDuplicate).length;
+  const checkedCount  = checkedRows.size;
 
   // ── Import ─────────────────────────────────────────────────────────────────
 
@@ -290,7 +331,10 @@ export function ImportView() {
     let invalidCount = 0;
 
     if (mode === "ai") {
-      validRows = aiRows;
+      // Only submit checked rows
+      validRows = rowsWithDups.length > 0
+        ? rowsWithDups.filter((_, i) => checkedRows.has(i))
+        : aiRows;
     } else {
       const { valid, invalid } = buildRows(allRows, effectiveColMap);
       validRows    = valid;
@@ -330,6 +374,7 @@ export function ImportView() {
     setHeaders([]); setAllRows([]); setColMap(null);
     setAutoDetected(false); setIsMint(false);
     setAiRows([]); setAiModel("");
+    setRowsWithDups([]); setCheckedRows(new Set());
     setAccountId(""); setCategoryId(""); setImportResult(null);
   };
 
@@ -559,24 +604,53 @@ export function ImportView() {
                 <table className="w-full text-xs">
                   <thead>
                     <tr style={{ borderBottom: "1px solid hsl(var(--ll-border))" }}>
-                      {["Date", "Description", "Amount", "Type",
+                      {[
+                        ...(mode === "ai" && rowsWithDups.length > 0 ? [""] : []),
+                        "Date", "Description", "Amount", "Type",
                         ...(isMint || mode === "ai" ? ["Category"] : []),
-                        ...(mode === "ai" ? ["Confidence"] : [])
-                      ].map(h => (
-                        <th key={h} className="px-4 py-2 text-left font-medium" style={{ color: "hsl(var(--ll-text-muted))" }}>{h}</th>
+                        ...(mode === "ai" ? ["Confidence"] : []),
+                      ].map((h, idx) => (
+                        <th key={idx} className="px-4 py-2 text-left font-medium" style={{ color: "hsl(var(--ll-text-muted))" }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
                     {previewRows.map((row, i) => {
-                      const lowConf = (row.confidence ?? 1) < 0.7;
+                      const rowWithDup = row as RowWithDup;
+                      const lowConf    = (row.confidence ?? 1) < 0.7;
+                      const isDup      = rowWithDup.isDuplicate === true;
+                      const isChecked  = checkedRows.has(i);
                       return (
                         <tr key={i} style={{
                           borderBottom: i < previewRows.length - 1 ? "1px solid hsl(var(--ll-border) / 0.5)" : undefined,
-                          background: lowConf ? "hsl(38 92% 50% / 0.04)" : undefined,
+                          background: isDup
+                            ? "hsl(48 96% 50% / 0.05)"
+                            : lowConf ? "hsl(38 92% 50% / 0.04)" : undefined,
+                          opacity: mode === "ai" && rowsWithDups.length > 0 && !isChecked ? 0.45 : 1,
                         }}>
+                          {mode === "ai" && rowsWithDups.length > 0 && (
+                            <td className="px-4 py-2">
+                              <input
+                                type="checkbox"
+                                checked={isChecked}
+                                onChange={() => {
+                                  const next = new Set(checkedRows);
+                                  if (isChecked) next.delete(i); else next.add(i);
+                                  setCheckedRows(next);
+                                }}
+                                className="h-3.5 w-3.5 cursor-pointer"
+                              />
+                            </td>
+                          )}
                           <td className="px-4 py-2" style={{ color: "hsl(var(--ll-text-secondary))" }}>{row.date}</td>
-                          <td className="px-4 py-2 max-w-[160px] truncate" style={{ color: "hsl(var(--ll-text-primary))" }}>{row.description}</td>
+                          <td className="px-4 py-2 max-w-[160px] truncate" style={{ color: "hsl(var(--ll-text-primary))" }}>
+                            {row.description}
+                            {isDup && (
+                              <span className="ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-semibold bg-yellow-500/15 text-yellow-500">
+                                Duplicate?
+                              </span>
+                            )}
+                          </td>
                           <td className="px-4 py-2 font-mono" style={{ color: row.type === "income" ? "hsl(var(--ll-income))" : "hsl(var(--ll-expense))" }}>
                             {row.type === "expense" ? "-" : "+"}{row.amount.toFixed(2)}
                           </td>
@@ -611,6 +685,17 @@ export function ImportView() {
             </div>
           )}
 
+          {/* Duplicate summary */}
+          {mode === "ai" && rowsWithDups.length > 0 && (
+            <p className="text-xs px-1" style={{ color: "hsl(var(--ll-text-muted))" }}>
+              <span style={{ color: "hsl(var(--ll-income))" }}>{newCount} new</span>
+              {dupCount > 0 && (
+                <>, <span className="text-yellow-500">{dupCount} possible duplicate{dupCount !== 1 ? "s" : ""} (unchecked)</span></>
+              )}
+              {" · "}{checkedCount} selected for import
+            </p>
+          )}
+
           <div className="flex gap-3">
             <button onClick={reset} className="flex-none rounded-lg px-4 py-2 text-sm font-medium transition-colors"
               style={{ background: "hsl(var(--ll-bg-elevated))", color: "hsl(var(--ll-text-secondary))", border: "1px solid hsl(var(--ll-border))" }}>
@@ -618,15 +703,17 @@ export function ImportView() {
             </button>
             <button
               onClick={handleImport}
-              disabled={importing || aiParsing || previewRows.length === 0 || !accountId}
+              disabled={importing || aiParsing || previewRows.length === 0 || !accountId || (mode === "ai" && rowsWithDups.length > 0 && checkedCount === 0)}
               className="flex-1 rounded-lg py-2 text-sm font-medium text-white disabled:opacity-50 transition-colors"
               style={{ background: "hsl(var(--ll-accent))" }}
             >
               {importing
                 ? "Importing…"
-                : mode === "ai"
-                  ? `Import ${aiRows.length} transaction${aiRows.length !== 1 ? "s" : ""}`
-                  : `Import ${allRows.length} transaction${allRows.length !== 1 ? "s" : ""}`}
+                : mode === "ai" && rowsWithDups.length > 0
+                  ? `Import ${checkedCount} transaction${checkedCount !== 1 ? "s" : ""}`
+                  : mode === "ai"
+                    ? `Import ${aiRows.length} transaction${aiRows.length !== 1 ? "s" : ""}`
+                    : `Import ${allRows.length} transaction${allRows.length !== 1 ? "s" : ""}`}
             </button>
           </div>
         </div>
