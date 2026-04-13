@@ -63,3 +63,17 @@ export function useAccounts() {
     deleteAccount: (id: number) => deleteAccount.mutateAsync(id),
   };
 }
+
+export function useAccountHistory(accountId: number) {
+  const { data = [] } = useQuery<{ month: string; balance: number }[]>({
+    queryKey: ["account-history", accountId],
+    queryFn: async () => {
+      const res  = await authFetch(`/api/v1/accounts/${accountId}/history`);
+      const json = await res.json();
+      if (!json.success) return [];
+      return json.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+  return data;
+}

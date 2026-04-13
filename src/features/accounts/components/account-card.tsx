@@ -2,9 +2,11 @@
 
 import { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
+import { AreaChart, Area, ResponsiveContainer, Tooltip } from "recharts";
 import { formatCurrency } from "@/shared/lib/formatters";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { accountTypeLabel, accountTypeIcon } from "@/lib/account-types";
+import { useAccountHistory } from "@/features/accounts/hooks/useAccounts";
 import type { Account } from "@/shared/types";
 
 export function AccountCard({
@@ -21,6 +23,7 @@ export function AccountCard({
   const [confirm, setConfirm] = useState(false);
   const balance  = account.balance ?? account.startingBalance;
   const TypeIcon = accountTypeIcon(account.type);
+  const history  = useAccountHistory(account.id);
 
   return (
     <div className="ll-card group relative overflow-hidden p-5">
@@ -65,6 +68,34 @@ export function AccountCard({
         <p className={`ll-mono ll-balance mt-3 text-2xl font-bold ${balance < 0 ? "ll-balance-negative" : ""}`}>
           {formatCurrency(balance)}
         </p>
+        {history.length >= 2 && (
+          <div className="mt-3 h-12 w-full">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={history} margin={{ top: 2, right: 0, bottom: 0, left: 0 }}>
+                <defs>
+                  <linearGradient id={`sparkGrad-${account.id}`} x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%"  stopColor={account.colour} stopOpacity={0.25} />
+                    <stop offset="95%" stopColor={account.colour} stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <Tooltip
+                  contentStyle={{ background: "hsl(var(--ll-bg-surface))", border: "1px solid hsl(var(--ll-border))", borderRadius: 6, fontSize: 11 }}
+                  formatter={(v: number) => [formatCurrency(v), "Balance"]}
+                  labelStyle={{ color: "hsl(var(--ll-text-muted))" }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="balance"
+                  stroke={account.colour}
+                  strokeWidth={1.5}
+                  fill={`url(#sparkGrad-${account.id})`}
+                  dot={false}
+                  activeDot={{ r: 3, fill: account.colour }}
+                />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
         {onViewTransactions && (
           <button
             onClick={onViewTransactions}
