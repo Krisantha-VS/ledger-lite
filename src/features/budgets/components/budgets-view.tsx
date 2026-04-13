@@ -86,11 +86,11 @@ export function BudgetsView() {
             const over = (b.spent ?? 0) > effective;
             return (
               <div key={b.id} className="ll-card p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex min-w-0 flex-1 items-center gap-2">
                     <CategoryIcon icon={b.categoryIcon ?? "📦"} size={14} />
-                    <div>
-                      <span className="text-sm font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
+                    <div className="min-w-0">
+                      <span className="truncate text-sm font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
                         {b.categoryName}
                       </span>
                       {b.rollover && (b.rolloverAmount ?? 0) > 0 && (
@@ -101,18 +101,23 @@ export function BudgetsView() {
                       )}
                     </div>
                     {over && (
-                      <span className="rounded bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-medium text-rose-400">
-                        Over limit
+                      <span className="shrink-0 rounded bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-medium text-rose-400">
+                        Over by {formatCurrency((b.spent ?? 0) - effective)}
                       </span>
                     )}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <span className="ll-mono text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>
-                      {formatCurrency(b.spent ?? 0)} / {formatCurrency(effective)}
-                    </span>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <div className="text-right">
+                      <p className="ll-mono text-xs font-semibold" style={{ color: over ? "hsl(var(--ll-expense))" : "hsl(var(--ll-text-primary))" }}>
+                        {formatCurrency(b.spent ?? 0)} <span className="font-normal" style={{ color: "hsl(var(--ll-text-muted))" }}>/ {formatCurrency(effective)}</span>
+                      </p>
+                      <p className="text-[10px]" style={{ color: over ? "hsl(var(--ll-expense))" : "hsl(var(--ll-text-muted))" }}>
+                        {over ? `${Math.round(pct)}% used` : `${formatCurrency(effective - (b.spent ?? 0))} left`}
+                      </p>
+                    </div>
                     <button
                       onClick={() => setDeleteId(b.id)}
-                      className="rounded p-1 transition-colors hover:bg-rose-500/10"
+                      className="cursor-pointer rounded p-1 transition-colors hover:bg-rose-500/10"
                       style={{ color: "hsl(var(--ll-text-muted))" }}
                       aria-label={`Delete ${b.categoryName} budget`}
                     >
@@ -120,7 +125,7 @@ export function BudgetsView() {
                     </button>
                   </div>
                 </div>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full" style={{ background: "hsl(var(--ll-border))" }}>
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full" style={{ background: "hsl(var(--ll-border))" }}>
                   <div
                     className="h-full rounded-full transition-all duration-500"
                     style={{ width: `${pct}%`, background: over ? "hsl(var(--ll-expense))" : "hsl(var(--ll-accent))" }}
@@ -162,7 +167,7 @@ export function BudgetsView() {
           <button
             type="button"
             onClick={() => setValue("rollover", !rolloverValue)}
-            className="flex w-full items-center justify-between rounded-lg border px-3 py-2.5 text-left transition-colors"
+            className="flex w-full cursor-pointer items-center justify-between rounded-lg border px-3 py-2.5 text-left transition-colors"
             style={{
               borderColor: rolloverValue ? "hsl(var(--ll-accent))" : "hsl(var(--ll-border))",
               background: rolloverValue ? "hsl(var(--ll-accent) / 0.05)" : "transparent",

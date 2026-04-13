@@ -45,6 +45,7 @@ export async function GET(req: Request) {
       where.OR = [
         { note:     { contains: s, mode: "insensitive" } },
         { category: { name: { contains: s, mode: "insensitive" } } },
+        { account:  { name: { contains: s, mode: "insensitive" } } },
       ];
     }
 

@@ -73,7 +73,7 @@ export function ReportsView() {
             <button
               key={opt.label}
               onClick={() => setRange(opt)}
-              className="rounded-full px-3 py-1 text-xs font-medium transition-colors"
+              className="cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-colors"
               style={{
                 background: active ? "hsl(var(--ll-accent))" : "hsl(var(--ll-bg-surface))",
                 color:      active ? "hsl(var(--ll-accent-fg))" : "hsl(var(--ll-text-muted))",

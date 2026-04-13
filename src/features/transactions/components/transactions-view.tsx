@@ -57,13 +57,23 @@ export function TransactionsView() {
 
       {/* Search */}
       <div className="relative">
-        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2" style={{ color: "hsl(var(--ll-text-muted))" }} />
+        <Search className="absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 pointer-events-none" style={{ color: "hsl(var(--ll-text-muted))" }} />
         <input
-          className="ll-input pl-8 text-sm"
-          placeholder="Search transactions…"
+          className="ll-input pl-8 pr-8 text-sm"
+          placeholder="Search by note, category or account…"
           value={search}
           onChange={e => { setSearch(e.target.value); setPage(1); }}
         />
+        {search && (
+          <button
+            onClick={() => { setSearch(""); setPage(1); }}
+            className="absolute right-2.5 top-1/2 -translate-y-1/2 cursor-pointer rounded p-0.5 transition-colors hover:bg-white/10"
+            style={{ color: "hsl(var(--ll-text-muted))" }}
+            aria-label="Clear search"
+          >
+            ✕
+          </button>
+        )}
       </div>
 
       {/* Type filter */}
@@ -72,7 +82,7 @@ export function TransactionsView() {
           <button
             key={t}
             onClick={() => { setFilter(t === "all" ? "" : t); setPage(1); }}
-            className="rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-all"
+            className="cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-all"
             style={{
               background: (filter === t || (t === "all" && !filter)) ? "hsl(var(--ll-accent))" : "hsl(var(--ll-bg-surface))",
               color: (filter === t || (t === "all" && !filter)) ? "#fff" : "hsl(var(--ll-text-muted))",

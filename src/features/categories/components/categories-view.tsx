@@ -47,7 +47,7 @@ function ColourPicker({
           key={c}
           type="button"
           onClick={() => onChange(c)}
-          className="h-5 w-5 rounded-full border-2 transition-transform hover:scale-110"
+          className="h-5 w-5 cursor-pointer rounded-full border-2 transition-transform hover:scale-110"
           style={{
             background: c,
             borderColor: value === c ? "hsl(var(--ll-text-primary))" : "transparent",

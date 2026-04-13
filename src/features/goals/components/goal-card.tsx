@@ -27,35 +27,38 @@ export function GoalCard({
       <div className="absolute left-0 top-0 h-full w-1 rounded-l-xl" style={{ background: goal.colour }} />
 
       <div className="pl-2">
-        <div className="flex items-start justify-between">
-          <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <p className="truncate text-sm font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>
               {goal.name}
             </p>
-            {goal.isCompleted && <CheckCircle2 className="h-4 w-4 text-green-400" />}
+            {goal.isCompleted && <CheckCircle2 className="h-4 w-4 shrink-0 text-green-400" />}
           </div>
-          <div className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+          <div className="flex shrink-0 gap-1">
             <button
               onClick={() => onEdit(goal)}
-              className="rounded-md p-1.5 transition-colors hover:bg-white/5"
+              className="cursor-pointer rounded-md p-1.5 transition-colors hover:bg-white/5"
               style={{ color: "hsl(var(--ll-text-muted))" }}
+              aria-label="Edit goal"
             >
               <Pencil className="h-3.5 w-3.5" />
             </button>
             {!goal.isCompleted && (
               <button
                 onClick={() => onComplete(goal.id)}
-                className="rounded-md p-1.5 transition-colors hover:bg-green-500/10"
+                className="cursor-pointer rounded-md p-1.5 transition-colors hover:bg-green-500/10"
                 style={{ color: "hsl(var(--ll-text-muted))" }}
                 title="Mark complete"
+                aria-label="Mark goal complete"
               >
                 <CheckCircle2 className="h-3.5 w-3.5" />
               </button>
             )}
             <button
               onClick={() => setConfirm(true)}
-              className="rounded-md p-1.5 transition-colors hover:bg-rose-500/10"
+              className="cursor-pointer rounded-md p-1.5 transition-colors hover:bg-rose-500/10"
               style={{ color: "hsl(var(--ll-text-muted))" }}
+              aria-label="Delete goal"
             >
               <Trash2 className="h-3.5 w-3.5" />
             </button>
@@ -69,6 +72,9 @@ export function GoalCard({
             </p>
             <p className="text-[11px]" style={{ color: "hsl(var(--ll-text-muted))" }}>
               of {formatCurrency(target)}
+              {!goal.isCompleted && current < target && (
+                <> · <span style={{ color: goal.colour }}>{formatCurrency(target - current)} to go</span></>
+              )}
             </p>
           </div>
           <p className="ll-mono text-lg font-semibold" style={{ color: goal.colour }}>

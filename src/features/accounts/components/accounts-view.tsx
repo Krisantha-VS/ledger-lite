@@ -55,7 +55,7 @@ export function AccountsView() {
         <div className="flex flex-wrap gap-1">
           {ACCOUNT_TYPES.map(t => (
             <button key={t} onClick={() => setTypeFilter(t)}
-              className="rounded-lg px-2.5 py-1 text-xs font-medium capitalize transition-all"
+              className="cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium capitalize transition-all"
               style={{
                 background: typeFilter === t ? "hsl(var(--ll-accent))" : "hsl(var(--ll-bg-surface))",
                 color: typeFilter === t ? "#fff" : "hsl(var(--ll-text-muted))",
