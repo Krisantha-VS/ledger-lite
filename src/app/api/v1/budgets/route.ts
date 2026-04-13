@@ -49,7 +49,6 @@ export async function GET(req: Request) {
     });
     const spentMap = Object.fromEntries(spentRows.map(r => [r.categoryId, Number(r._sum.amount ?? 0)]));
 
-    const now          = new Date();
     const daysInMonth  = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
     const daysElapsed  = now.getDate();
 
