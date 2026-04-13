@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
-const AUTH_URL  = (process.env.NEXT_PUBLIC_AUTH_URL  ?? 'https://auth-saas.royalda.com').trim();
+const AUTH_URL  = (process.env.NEXT_PUBLIC_AUTH_URL  ?? 'https://auth-saas.royalda.com/api/v1').trim();
 const CLIENT_ID =  process.env.NEXT_PUBLIC_AUTH_CLIENT_ID ?? '';
 
 export async function POST(_req: NextRequest) {
@@ -18,5 +18,23 @@ export async function POST(_req: NextRequest) {
   if (!res.ok) return NextResponse.json({ success: false }, { status: 401 });
 
   const json = await res.json();
-  return NextResponse.json({ success: true, data: { accessToken: json.data.accessToken } });
+  if (!json.success) return NextResponse.json({ success: false }, { status: 401 });
+
+  const { accessToken, refreshToken: newRefreshToken } = json.data;
+
+  const isProduction = process.env.NODE_ENV === 'production';
+  const response = NextResponse.json({ success: true, data: { accessToken } });
+
+  // Rotate the refresh cookie with the new token from auth-saas
+  if (newRefreshToken) {
+    response.cookies.set('ll_refresh', newRefreshToken, {
+      httpOnly: true,
+      sameSite: 'lax',
+      path: '/api/auth/refresh',
+      maxAge: 7 * 24 * 60 * 60, // 7 days — matches auth-saas TTL
+      secure: isProduction,
+    });
+  }
+
+  return response;
 }
