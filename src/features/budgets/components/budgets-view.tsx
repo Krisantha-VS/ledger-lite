@@ -113,7 +113,7 @@ export function BudgetsView() {
             const over      = (b.spent ?? 0) > effective;
             // M3: amber near-limit state
             const nearLimit = !over && pct >= 75;
-            const barColor  = over ? "hsl(var(--ll-expense))" : nearLimit ? "hsl(38 92% 50%)" : "hsl(var(--ll-accent))";
+            const barColor  = over ? "hsl(var(--ll-expense))" : nearLimit ? "hsl(var(--ll-warning))" : "hsl(var(--ll-accent))";
             return (
               <div key={b.id} className="ll-card p-4">
                 <div className="flex items-center justify-between gap-2">
@@ -126,7 +126,7 @@ export function BudgetsView() {
                         </span>
                         {/* M3: nearly-at-limit badge */}
                         {nearLimit && (
-                          <span className="shrink-0 rounded bg-amber-500/10 px-1.5 py-0.5 text-[10px] font-medium text-amber-400">
+                          <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ background: "hsl(var(--ll-warning) / 0.1)", color: "hsl(var(--ll-warning))" }}>
                             Nearly at limit
                           </span>
                         )}
@@ -150,7 +150,7 @@ export function BudgetsView() {
                         {formatCurrency(b.spent ?? 0)} <span className="font-normal" style={{ color: "hsl(var(--ll-text-muted))" }}>/ {formatCurrency(effective)}</span>
                       </p>
                       {/* M3: remaining text uses amber when near limit */}
-                      <p className="text-[10px]" style={{ color: over ? "hsl(var(--ll-expense))" : nearLimit ? "hsl(38 92% 50%)" : "hsl(var(--ll-text-muted))" }}>
+                      <p className="text-[10px]" style={{ color: over ? "hsl(var(--ll-expense))" : nearLimit ? "hsl(var(--ll-warning))" : "hsl(var(--ll-text-muted))" }}>
                         {over ? `${Math.round(pct)}% used` : `${formatCurrency(effective - (b.spent ?? 0))} left`}
                       </p>
                     </div>

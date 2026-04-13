@@ -42,6 +42,7 @@ export function SubscriptionsView() {
 
   const cancelEdit = () => {
     setEditId(null);
+    setEditState({ note: "", amount: "", recurrence: "monthly", nextDue: "" });
   };
 
   const saveEdit = async (id: number) => {

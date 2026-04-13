@@ -97,7 +97,7 @@ export function TransactionsView() {
               const params = new URLSearchParams();
               if (searchParams.get("accountId")) params.set("accountId", searchParams.get("accountId")!);
               if (newFilter) params.set("type", newFilter);
-              if (debouncedSearch) params.set("search", debouncedSearch);
+              if (search) params.set("search", search);
               router.replace("/transactions?" + params.toString());
             }}
             className="cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-all"

@@ -8,7 +8,11 @@ export async function GET(req: Request) {
     const type   = url.searchParams.get("type");
 
     if (type === "monthly")    return ok(await monthlySummary(userId, parseInt(url.searchParams.get("months") ?? "12")));
-    if (type === "categories") return ok(await categoryBreakdown(userId, url.searchParams.get("month") ?? undefined, (url.searchParams.get("txType") as "income" | "expense") ?? "expense"));
+    if (type === "categories") {
+      const rawTxType = url.searchParams.get("txType");
+      const txType: "income" | "expense" = rawTxType === "income" ? "income" : "expense";
+      return ok(await categoryBreakdown(userId, url.searchParams.get("month") ?? undefined, txType));
+    }
     if (type === "dashboard")  return ok(await dashboardSummary(userId));
     if (type === "networth")   return ok(await netWorthSummary(userId));
 
@@ -73,7 +77,7 @@ async function dashboardSummary(userId: string) {
     AND (SELECT COALESCE(SUM(t.amount),0) FROM "Transaction" t
          WHERE t."categoryId"=b."categoryId" AND t."userId"=${userId}
            AND t.type='expense' AND t.date BETWEEN ${start} AND ${end}
-        ) > b.amount
+        ) > (b.amount + COALESCE(b."rolloverAmount", 0))
   `;
 
   return {
