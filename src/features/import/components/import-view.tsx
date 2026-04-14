@@ -1,13 +1,14 @@
 "use client";
 
-import { useState, useRef, useCallback, DragEvent, ChangeEvent } from "react";
-import { Upload, FileText, ChevronRight, Check, AlertCircle, Sparkles, AlertTriangle } from "lucide-react";
+import { useState, useEffect, useRef, useCallback, DragEvent, ChangeEvent } from "react";
+import { Upload, FileText, ChevronRight, Check, AlertCircle, Sparkles, AlertTriangle, Building2, Calendar, ArrowLeftRight } from "lucide-react";
 import { toast } from "sonner";
 import { authFetch } from "@/shared/lib/auth-client";
 import { useAccounts } from "@/features/accounts/hooks/useAccounts";
 import { useCategories } from "@/features/categories/hooks/useCategories";
 import { accountTypeLabel } from "@/lib/account-types";
 import type { Transaction } from "@/shared/types";
+import type { StatementMeta } from "@/lib/ai/parse-document";
 
 // ─── CSV Parser ──────────────────────────────────────────────────────────────
 
@@ -84,6 +85,7 @@ function autoDetectColumns(headers: string[]): ColMap | null {
 interface ParsedRow {
   date: string; description: string; amount: number;
   type: "income" | "expense"; categoryName?: string; confidence?: number;
+  isTransfer?: boolean;
 }
 
 function toISODate(raw: string, mdy = false): string | null {
@@ -181,7 +183,7 @@ type Step = 1 | 2 | 3;
 type Mode = "csv" | "ai";
 
 export function ImportView() {
-  const { accounts, loading: accountsLoading } = useAccounts();
+  const { accounts, loading: accountsLoading, createAccount } = useAccounts();
   const { categories, loading: categoriesLoading } = useCategories();
 
   const [step, setStep]       = useState<Step>(1);
@@ -205,6 +207,9 @@ export function ImportView() {
   const [aiRows, setAiRows]       = useState<ParsedRow[]>([]);
   const [aiParsing, setAiParsing] = useState(false);
   const [aiModel, setAiModel]     = useState("");
+  const [statementMeta, setStatementMeta]         = useState<StatementMeta | null>(null);
+  const [smartCardDismissed, setSmartCardDismissed] = useState(false);
+  const [excludeTransfers, setExcludeTransfers]   = useState(true);
 
   // Duplicate detection
   type RowWithDup = ParsedRow & { isDuplicate?: boolean };
@@ -222,6 +227,15 @@ export function ImportView() {
   const [importResult, setImportResult] = useState<{ imported: number; skipped: number } | null>(null);
 
   const fileRef = useRef<HTMLInputElement>(null);
+
+  // ── Auto-select account when statement meta + accounts are both ready ──────
+  useEffect(() => {
+    if (accountId || accountsLoading || !statementMeta?.bankName || accounts.length === 0) return;
+    const match = accounts.find(a =>
+      a.name.toLowerCase().includes(statementMeta.bankName!.toLowerCase())
+    );
+    if (match) setAccountId(String(match.id));
+  }, [statementMeta, accounts, accountsLoading]);
 
   // ── File handling ──────────────────────────────────────────────────────────
 
@@ -307,6 +321,8 @@ export function ImportView() {
       const rows: ParsedRow[] = json.data.transactions;
       setAiRows(rows);
       setAiModel(json.data.model ?? "");
+      setStatementMeta(json.data.meta ?? null);
+      setSmartCardDismissed(false);
       toast.success(`AI extracted ${rows.length} transactions`);
       await checkDuplicates(rows);
     } catch (err) {
@@ -370,6 +386,19 @@ export function ImportView() {
   const dupCount      = rowsWithDups.filter(r => r.isDuplicate).length;
   const newCount      = rowsWithDups.filter(r => !r.isDuplicate).length;
   const checkedCount  = checkedRows.size;
+
+  // ── Smart card continue ────────────────────────────────────────────────────
+
+  const onSmartCardContinue = () => {
+    if (excludeTransfers && rowsWithDups.length > 0) {
+      setCheckedRows(prev => {
+        const next = new Set(prev);
+        rowsWithDups.forEach((r, i) => { if (r.isTransfer) next.delete(i); });
+        return next;
+      });
+    }
+    setSmartCardDismissed(true);
+  };
 
   // ── Import ─────────────────────────────────────────────────────────────────
 
@@ -444,7 +473,8 @@ export function ImportView() {
     setStep(1); setMode("csv"); setFileName(""); setFileObj(null);
     setHeaders([]); setAllRows([]); setColMap(null);
     setAutoDetected(false); setIsMint(false);
-    setAiRows([]); setAiModel("");
+    setAiRows([]); setAiModel(""); setStatementMeta(null);
+    setSmartCardDismissed(false); setExcludeTransfers(true);
     setRowsWithDups([]); setCheckedRows(new Set());
     setRecurringSuggestions(new Map()); setRecurringOverrides(new Map());
     setAccountId(""); setCategoryId(""); setImportResult(null);
@@ -474,7 +504,7 @@ export function ImportView() {
               className="flex h-7 w-7 items-center justify-center rounded-full text-xs font-semibold"
               style={{
                 background: step >= s ? "hsl(var(--ll-accent))" : "hsl(var(--ll-bg-elevated))",
-                color: step >= s ? "#fff" : "hsl(var(--ll-text-muted))",
+                color: step >= s ? "hsl(var(--ll-accent-fg))" : "hsl(var(--ll-text-muted))",
               }}
             >
               {step > s ? <Check className="h-3.5 w-3.5" /> : s}
@@ -536,9 +566,9 @@ export function ImportView() {
               ) : mode === "ai" && aiRows.length > 0 ? (
                 <Sparkles className="mt-0.5 h-4 w-4 shrink-0" style={{ color: "hsl(var(--ll-accent))" }} />
               ) : autoDetected ? (
-                <Check className="mt-0.5 h-4 w-4 shrink-0 text-green-400" />
+                <Check className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(var(--ll-income))]" />
               ) : (
-                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-amber-400" />
+                <AlertCircle className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(var(--ll-warning))]" />
               )}
               <div className="flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
@@ -554,11 +584,6 @@ export function ImportView() {
                   {isMint && (
                     <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "hsl(var(--ll-accent) / 0.15)", color: "hsl(var(--ll-accent))" }}>
                       Mint CSV
-                    </span>
-                  )}
-                  {mode === "ai" && aiModel && (
-                    <span className="rounded-full px-2 py-0.5 text-[10px] font-semibold" style={{ background: "hsl(var(--ll-accent) / 0.15)", color: "hsl(var(--ll-accent))" }}>
-                      {aiModel}
                     </span>
                   )}
                 </div>
@@ -594,12 +619,28 @@ export function ImportView() {
 
           {/* Low-confidence warning */}
           {mode === "ai" && lowConfidenceCount > 0 && (
-            <div className="flex items-center gap-2 rounded-lg px-3 py-2.5" style={{ background: "hsl(38 92% 50% / 0.08)", border: "1px solid hsl(38 92% 50% / 0.2)" }}>
-              <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-amber-400" />
+            <div className="flex items-center gap-2 rounded-lg px-3 py-2.5" style={{ background: "hsl(var(--ll-warning) / 0.08)", border: "1px solid hsl(var(--ll-warning) / 0.2)" }}>
+              <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-[hsl(var(--ll-warning))]" />
               <p className="text-xs" style={{ color: "hsl(var(--ll-text-secondary))" }}>
                 {lowConfidenceCount} row{lowConfidenceCount !== 1 ? "s are" : " is"} flagged low-confidence. Review them before importing.
               </p>
             </div>
+          )}
+
+          {/* Smart Summary Card — AI mode only, shown before row review */}
+          {mode === "ai" && aiRows.length > 0 && !smartCardDismissed && (
+            <SmartSummaryCard
+              meta={statementMeta}
+              rows={aiRows}
+              excludeTransfers={excludeTransfers}
+              onExcludeTransfersChange={setExcludeTransfers}
+              accounts={accounts}
+              accountsLoading={accountsLoading}
+              accountId={accountId}
+              onAccountSelect={setAccountId}
+              createAccount={createAccount}
+              onContinue={onSmartCardContinue}
+            />
           )}
 
           {/* Manual column mapping (CSV only, when auto-detect failed) */}
@@ -633,7 +674,7 @@ export function ImportView() {
             <div className="space-y-3">
               <div>
                 <label className="mb-1 block text-xs font-medium" style={{ color: "hsl(var(--ll-text-secondary))" }}>
-                  Account <span className="text-rose-400">*</span>
+                  Account <span className="text-[hsl(var(--ll-expense))]">*</span>
                 </label>
                 {accountsLoading ? (
                   <div className="ll-input text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>Loading…</div>
@@ -751,7 +792,7 @@ export function ImportView() {
                           )}
                           {mode === "ai" && (
                             <td className="px-4 py-2">
-                              <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${lowConf ? "bg-amber-500/10 text-amber-400" : "bg-green-500/10 text-green-400"}`}>
+                              <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${lowConf ? "bg-[hsl(var(--ll-warning)/0.1)] text-[hsl(var(--ll-warning))]" : "bg-[hsl(var(--ll-income)/0.1)] text-[hsl(var(--ll-income))]"}`}>
                                 {Math.round((row.confidence ?? 1) * 100)}%
                               </span>
                             </td>
@@ -768,7 +809,7 @@ export function ImportView() {
           {previewRows.length === 0 && !aiParsing && mode !== "ai" && (
             <div className="ll-card p-5">
               <div className="flex items-center gap-2">
-                <AlertCircle className="h-4 w-4 text-amber-400" />
+                <AlertCircle className="h-4 w-4 text-[hsl(var(--ll-warning))]" />
                 <p className="text-sm" style={{ color: "hsl(var(--ll-text-muted))" }}>
                   No rows could be parsed. Try AI parsing instead.
                 </p>
@@ -845,6 +886,237 @@ export function ImportView() {
           </span>
         </div>
       )}
+    </div>
+  );
+}
+
+// ─── Smart Summary Card ───────────────────────────────────────────────────────
+
+interface SmartSummaryCardProps {
+  meta:                    StatementMeta | null;
+  rows:                    ParsedRow[];
+  excludeTransfers:        boolean;
+  onExcludeTransfersChange:(v: boolean) => void;
+  accounts:                import("@/shared/types").Account[];
+  accountsLoading:         boolean;
+  accountId:               string;
+  onAccountSelect:         (id: string) => void;
+  createAccount:           (p: { name: string; type: string; startingBalance: number; colour: string }) => Promise<import("@/shared/types").Account>;
+  onContinue:              () => void;
+}
+
+const ACCOUNT_TYPE_LABELS: Record<string, string> = {
+  checking:   "Checking",
+  savings:    "Savings",
+  cash:       "Cash",
+  credit:     "Credit",
+  investment: "Investment",
+};
+const ACCOUNT_TYPE_ORDER = ["checking", "savings", "cash", "credit", "investment"];
+
+function SmartSummaryCard({
+  meta, rows, excludeTransfers, onExcludeTransfersChange,
+  accounts, accountsLoading, accountId, onAccountSelect, createAccount, onContinue,
+}: SmartSummaryCardProps) {
+  const [creating, setCreating] = useState(false);
+
+  const transferCount    = rows.filter(r => r.isTransfer).length;
+  const totalCount       = rows.length;
+  const nonTransferCount = totalCount - transferCount;
+
+  // Find existing account matching detected bank name
+  const suggestedAccount = meta?.bankName && !accountsLoading
+    ? accounts.find(a => a.name.toLowerCase().includes(meta.bankName!.toLowerCase()))
+    : null;
+
+  // Build suggested create name: BankName-XXXX
+  const shortAccNum = (meta?.accountNumber ?? "").replace(/[^0-9]/g, "").slice(-4);
+  const suggestedName = shortAccNum
+    ? `${meta?.bankName ?? "Bank"}-${shortAccNum}`
+    : meta?.bankName ?? "Account";
+
+  // Group accounts by type for optgroup rendering
+  const grouped = ACCOUNT_TYPE_ORDER
+    .map(type => ({ type, label: ACCOUNT_TYPE_LABELS[type], items: accounts.filter(a => a.type === type) }))
+    .filter(g => g.items.length > 0);
+
+  const handleCreateAccount = async () => {
+    setCreating(true);
+    try {
+      const acct = await createAccount({
+        name:            suggestedName,
+        type:            meta?.accountType ?? "checking",
+        startingBalance: meta?.openingBalance ?? 0,
+        colour:          "#6366f1",
+      });
+      onAccountSelect(String(acct.id));
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  const formatDate = (d: string | null) => {
+    if (!d) return null;
+    return new Date(d + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  };
+
+  const hasAccountInfo = meta?.bankName || meta?.accountNumber;
+  const hasPeriod      = meta?.statementFrom || meta?.statementTo;
+  const hasTransfers   = transferCount > 0;
+
+  return (
+    <div className="ll-card overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center gap-2 border-b px-5 py-3.5" style={{ borderColor: "hsl(var(--ll-border))" }}>
+        <Sparkles className="h-4 w-4" style={{ color: "hsl(var(--ll-accent))" }} />
+        <p className="text-sm font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>
+          AI detected {totalCount} transactions — review before importing
+        </p>
+      </div>
+
+      <div className="divide-y" style={{ borderColor: "hsl(var(--ll-border)/0.6)" }}>
+
+        {/* Account section */}
+        {hasAccountInfo && (
+          <div className="flex items-start gap-3 px-5 py-4">
+            <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg" style={{ background: "hsl(var(--ll-accent)/0.1)" }}>
+              <Building2 className="h-3.5 w-3.5" style={{ color: "hsl(var(--ll-accent))" }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
+                {[meta?.bankName, meta?.accountType, meta?.accountNumber].filter(Boolean).join(" · ")}
+                {meta?.currency && <span className="ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "hsl(var(--ll-accent)/0.1)", color: "hsl(var(--ll-accent))" }}>{meta.currency}</span>}
+              </p>
+              <p className="mt-0.5 text-[11px]" style={{ color: "hsl(var(--ll-text-muted))" }}>
+                Assign transactions to an account
+              </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                {accountsLoading ? (
+                  <div className="ll-input h-7 text-xs flex items-center" style={{ minWidth: 160, color: "hsl(var(--ll-text-muted))" }}>Loading…</div>
+                ) : (
+                  <select
+                    className="ll-input h-7 text-xs"
+                    value={accountId}
+                    onChange={e => onAccountSelect(e.target.value)}
+                    style={{ minWidth: 160 }}
+                  >
+                    <option value="">Select existing…</option>
+                    {grouped.map(g => (
+                      <optgroup key={g.type} label={g.label}>
+                        {g.items.map(a => (
+                          <option key={a.id} value={String(a.id)}>
+                            {a.name}{suggestedAccount?.id === a.id ? " ✓" : ""}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
+                  </select>
+                )}
+                {!accountsLoading && !suggestedAccount && !accountId && (
+                  <button
+                    onClick={handleCreateAccount}
+                    disabled={creating}
+                    className="flex items-center gap-1 rounded-lg px-2.5 py-1 text-xs font-medium disabled:opacity-50"
+                    style={{ background: "hsl(var(--ll-accent)/0.1)", color: "hsl(var(--ll-accent))" }}
+                  >
+                    {creating ? "Creating…" : `+ Create "${suggestedName}"`}
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Statement period */}
+        {hasPeriod && (
+          <div className="flex items-start gap-3 px-5 py-4">
+            <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg" style={{ background: "hsl(var(--ll-income)/0.1)" }}>
+              <Calendar className="h-3.5 w-3.5" style={{ color: "hsl(var(--ll-income))" }} />
+            </div>
+            <div className="flex-1">
+              <p className="text-xs font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
+                {formatDate(meta?.statementFrom ?? null)} – {formatDate(meta?.statementTo ?? null)}
+              </p>
+              {meta?.openingBalance != null && (
+                <p className="mt-0.5 text-[11px]" style={{ color: "hsl(var(--ll-text-muted))" }}>
+                  Opening balance: <span className="font-medium">{meta.currency ?? ""} {meta.openingBalance.toLocaleString()}</span>
+                  {meta.closingBalance != null && (
+                    <> · Closing: <span className="font-medium">{meta.closingBalance.toLocaleString()}</span></>
+                  )}
+                </p>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Transfer detection */}
+        {hasTransfers && (
+          <div className="flex items-start gap-3 px-5 py-4">
+            <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg" style={{ background: "hsl(var(--ll-warning)/0.1)" }}>
+              <ArrowLeftRight className="h-3.5 w-3.5" style={{ color: "hsl(var(--ll-warning))" }} />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-xs font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
+                    {transferCount} likely transfer{transferCount !== 1 ? "s" : ""} detected
+                  </p>
+                  <p className="mt-0.5 text-[11px]" style={{ color: "hsl(var(--ll-text-muted))" }}>
+                    {excludeTransfers
+                      ? `Excluding — ${nonTransferCount} transactions will be imported`
+                      : "Including — may cause double-counting"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => onExcludeTransfersChange(!excludeTransfers)}
+                  className="flex-shrink-0 flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors"
+                  style={{
+                    background: excludeTransfers ? "hsl(var(--ll-income)/0.12)" : "hsl(var(--ll-expense)/0.1)",
+                    color:      excludeTransfers ? "hsl(var(--ll-income))"      : "hsl(var(--ll-expense))",
+                  }}
+                >
+                  {excludeTransfers ? "Excluding ✓" : "Including"}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Stats row */}
+        <div className="flex flex-wrap gap-4 px-5 py-3" style={{ background: "hsl(var(--ll-bg-elevated)/0.4)" }}>
+          {[
+            { label: "Extracted",     value: String(totalCount) },
+            { label: "Will import",   value: String(excludeTransfers ? nonTransferCount : totalCount) },
+            { label: "Low confidence",value: String(rows.filter(r => (r.confidence ?? 1) < 0.7).length) },
+            ...(meta?.statementTransactionCount != null ? [{ label: "Statement total", value: String(meta.statementTransactionCount) }] : []),
+          ].map(s => (
+            <div key={s.label}>
+              <p className="text-[10px]" style={{ color: "hsl(var(--ll-text-muted))" }}>{s.label}</p>
+              <p className="text-sm font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>{s.value}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Extraction completeness warning */}
+        {meta?.statementTransactionCount != null && totalCount < meta.statementTransactionCount && (
+          <div className="mx-5 mb-3 flex items-center gap-2 rounded-lg px-3 py-2" style={{ background: "hsl(var(--ll-warning)/0.08)", border: "1px solid hsl(var(--ll-warning)/0.25)" }}>
+            <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-[hsl(var(--ll-warning))]" />
+            <p className="text-[11px]" style={{ color: "hsl(var(--ll-text-secondary))" }}>
+              Statement shows {meta.statementTransactionCount} transactions — AI extracted {totalCount}. The file may have been truncated or some rows were unreadable.
+            </p>
+          </div>
+        )}
+      </div>
+
+      <div className="px-5 py-4">
+        <button
+          onClick={onContinue}
+          className="flex w-full items-center justify-center gap-1.5 rounded-lg py-2.5 text-sm font-medium text-white transition-colors"
+          style={{ background: "hsl(var(--ll-accent))" }}
+        >
+          Review transactions <ChevronRight className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 }

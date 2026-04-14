@@ -43,6 +43,7 @@ export async function POST(req: Request) {
 
     return ok({
       transactions: result.transactions,
+      meta:         result.meta,
       provider:     result.provider,
       model:        result.model,
       rawCount:     result.rawCount,

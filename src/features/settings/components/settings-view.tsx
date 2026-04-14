@@ -171,7 +171,7 @@ export function SettingsView() {
 
       {/* Danger zone */}
       <div className="ll-card p-5" style={{ borderColor: "hsl(var(--ll-expense) / 0.3)" }}>
-        <h2 className="mb-1 text-sm font-semibold text-rose-400">Danger zone</h2>
+        <h2 className="mb-1 text-sm font-semibold text-[hsl(var(--ll-expense))]">Danger zone</h2>
         <p className="mb-4 text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>
           Deletes all transactions, accounts, budgets, and goals.
           Your login credentials are not affected.

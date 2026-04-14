@@ -32,7 +32,7 @@ export function GoalCard({
             <p className="truncate text-sm font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>
               {goal.name}
             </p>
-            {goal.isCompleted && <CheckCircle2 className="h-4 w-4 shrink-0 text-green-400" />}
+            {goal.isCompleted && <CheckCircle2 className="h-4 w-4 shrink-0 text-[hsl(var(--ll-income))]" />}
           </div>
           <div className="flex shrink-0 gap-1">
             <button

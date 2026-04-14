@@ -5,7 +5,8 @@ import { formatCurrency, formatDate } from "@/shared/lib/formatters";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/ui/empty-state";
-import { ArrowRightLeft } from "lucide-react";
+import { ArrowRightLeft, ChevronRight } from "lucide-react";
+import Link from "next/link";
 import { CategoryIcon } from "@/components/ui/category-icon";
 import type { TransactionType } from "@/shared/types";
 
@@ -18,6 +19,9 @@ export function RecentTransactions() {
         <h2 className="text-sm font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>
           Recent Transactions
         </h2>
+        <Link href="/transactions" className="flex items-center gap-0.5 text-[11px] font-medium transition-colors hover:underline" style={{ color: "hsl(var(--ll-accent))" }}>
+          View all <ChevronRight className="h-3 w-3" />
+        </Link>
       </div>
       <div className="divide-y" style={{ borderColor: "hsl(var(--ll-border))" }}>
         {loading
@@ -32,7 +36,14 @@ export function RecentTransactions() {
               </div>
             ))
           : transactions.length === 0
-            ? <EmptyState icon={ArrowRightLeft} title="No transactions yet" />
+            ? (
+                <div className="flex flex-col items-center gap-2 py-8">
+                  <EmptyState icon={ArrowRightLeft} title="No transactions yet" />
+                  <Link href="/transactions" className="text-xs font-medium hover:underline" style={{ color: "hsl(var(--ll-accent))" }}>
+                    Add your first transaction →
+                  </Link>
+                </div>
+              )
             : transactions.map(tx => (
                 <TransactionItem key={tx.id} tx={tx} />
               ))
@@ -51,7 +62,7 @@ function TransactionItem({ tx }: { tx: import("@/shared/types").Transaction }) {
   const sign = tx.type === "income" ? "+" : tx.type === "expense" ? "-" : "";
 
   return (
-    <div className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-white/[0.02]">
+    <div className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[hsl(var(--ll-bg-elevated)/0.5)]">
       <div
         className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-sm"
         style={{ background: "hsl(var(--ll-accent) / 0.08)" }}

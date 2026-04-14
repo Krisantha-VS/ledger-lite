@@ -3,9 +3,9 @@ import { cn } from "@/shared/lib/utils";
 type Variant = "income" | "expense" | "transfer" | "default";
 
 const variantStyles: Record<Variant, string> = {
-  income:   "bg-green-500/10 text-green-700 ring-1 ring-green-500/20 dark:text-green-400",
-  expense:  "bg-rose-500/10 text-rose-700 ring-1 ring-rose-500/20 dark:text-rose-400",
-  transfer: "bg-indigo-500/10 text-indigo-700 ring-1 ring-indigo-500/20 dark:text-indigo-400",
+  income:   "bg-[hsl(var(--ll-income)/0.1)] text-[hsl(var(--ll-income))] ring-1 ring-[hsl(var(--ll-income)/0.2)]",
+  expense:  "bg-[hsl(var(--ll-expense)/0.1)] text-[hsl(var(--ll-expense))] ring-1 ring-[hsl(var(--ll-expense)/0.2)]",
+  transfer: "bg-[hsl(var(--ll-accent)/0.1)] text-[hsl(var(--ll-accent))] ring-1 ring-[hsl(var(--ll-accent)/0.2)]",
   default:  "bg-black/5 text-black/60 ring-1 ring-black/10 dark:bg-white/5 dark:text-white/60 dark:ring-white/10",
 };
 

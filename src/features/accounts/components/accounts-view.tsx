@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Plus, Wallet } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 import { useAccounts } from "@/features/accounts/hooks/useAccounts";
 import { AccountCard } from "./account-card";
@@ -41,14 +42,10 @@ export function AccountsView() {
               : `${accounts.length} account${accounts.length !== 1 ? "s" : ""}`}
           </p>
         </div>
-        <button
-          onClick={openNew}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-white transition-all active:scale-95"
-          style={{ background: "hsl(var(--ll-accent))" }}
-        >
+        <Button onClick={openNew}>
           <Plus className="h-3.5 w-3.5" />
           New Account
-        </button>
+        </Button>
       </div>
 
       {!loading && accounts.length > 0 && (
@@ -58,7 +55,7 @@ export function AccountsView() {
               className="cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium capitalize transition-all"
               style={{
                 background: typeFilter === t ? "hsl(var(--ll-accent))" : "hsl(var(--ll-bg-surface))",
-                color: typeFilter === t ? "#fff" : "hsl(var(--ll-text-muted))",
+                color: typeFilter === t ? "hsl(var(--ll-accent-fg))" : "hsl(var(--ll-text-muted))",
               }}
             >{t === "all" ? "All" : accountTypeLabel(t)}</button>
           ))}

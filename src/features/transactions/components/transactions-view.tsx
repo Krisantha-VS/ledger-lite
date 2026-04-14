@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { Plus, ArrowRightLeft, Search } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { useSearchParams, useRouter } from "next/navigation";
 import { useTransactions } from "@/features/transactions/hooks/useTransactions";
 import { TransactionRow } from "./transaction-row";
@@ -54,14 +55,10 @@ export function TransactionsView() {
           <h1 className="text-lg font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>Transactions</h1>
           <p className="text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>{total} total</p>
         </div>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-white transition-all active:scale-95"
-          style={{ background: "hsl(var(--ll-accent))" }}
-        >
+        <Button onClick={() => setShowCreate(true)}>
           <Plus className="h-3.5 w-3.5" />
           New
-        </button>
+        </Button>
       </div>
 
       {/* Search */}
@@ -104,7 +101,7 @@ export function TransactionsView() {
             className="cursor-pointer rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-all"
             style={{
               background: (filter === t || (t === "all" && !filter)) ? "hsl(var(--ll-accent))" : "hsl(var(--ll-bg-surface))",
-              color: (filter === t || (t === "all" && !filter)) ? "#fff" : "hsl(var(--ll-text-muted))",
+              color: (filter === t || (t === "all" && !filter)) ? "hsl(var(--ll-accent-fg))" : "hsl(var(--ll-text-muted))",
             }}
           >
             {t}

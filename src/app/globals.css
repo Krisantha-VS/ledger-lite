@@ -16,6 +16,7 @@
   /* Accent — indigo-500 */
   --ll-accent:       239 84% 67%;
   --ll-accent-hover: 238 72% 59%;
+  --ll-accent-fg:    0 0% 100%;
 
   /* Semantic financial */
   --ll-income:  142 71% 38%;
@@ -59,6 +60,7 @@
   /* Accent unchanged */
   --ll-accent:       239 84% 67%;
   --ll-accent-hover: 238 72% 59%;
+  --ll-accent-fg:    0 0% 100%;
 
   /* Semantic financial — brighter for dark bg */
   --ll-income:  142 71% 45%;

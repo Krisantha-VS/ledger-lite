@@ -21,9 +21,9 @@ export function BudgetAlert() {
         border: "1px solid hsl(var(--ll-expense) / 0.25)",
       }}
     >
-      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-rose-400" />
+      <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(var(--ll-expense))]" />
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-rose-400">
+        <p className="text-sm font-medium text-[hsl(var(--ll-expense))]">
           {overLimit.length === 1
             ? `${overLimit[0].categoryName} is over budget`
             : `${overLimit.length} categories are over budget`}

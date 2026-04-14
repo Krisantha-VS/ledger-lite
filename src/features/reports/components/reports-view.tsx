@@ -11,9 +11,9 @@ import { formatCurrency, formatMonth } from "@/shared/lib/formatters";
 import { Skeleton } from "@/components/ui/skeleton";
 
 const CHART_COLORS = [
-  "hsl(239 84% 67%)", "hsl(142 71% 45%)", "hsl(38 92% 50%)",
-  "hsl(330 81% 60%)", "hsl(199 89% 48%)", "hsl(24 95% 53%)",
-  "hsl(262 83% 58%)", "hsl(0 84% 60%)",
+  "hsl(var(--chart-savings))", "hsl(var(--chart-income))",  "hsl(var(--chart-cat-2))",
+  "hsl(var(--chart-cat-3))",  "hsl(var(--chart-cat-1))",   "hsl(var(--chart-cat-5))",
+  "hsl(var(--chart-cat-4))",  "hsl(var(--chart-expense))",
 ];
 
 type RangeOption = { label: string; months: number; ytd?: boolean };
@@ -103,12 +103,12 @@ export function ReportsView() {
             <AreaChart data={chartData} margin={{ top: 4, right: 4, bottom: 0, left: 0 }}>
               <defs>
                 <linearGradient id="gIncome" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="hsl(142 71% 45%)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="hsl(142 71% 45%)" stopOpacity={0} />
+                  <stop offset="5%"  stopColor="hsl(var(--chart-income))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--chart-income))" stopOpacity={0} />
                 </linearGradient>
                 <linearGradient id="gExpense" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%"  stopColor="hsl(0 84% 60%)" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="hsl(0 84% 60%)" stopOpacity={0} />
+                  <stop offset="5%"  stopColor="hsl(var(--chart-expense))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--chart-expense))" stopOpacity={0} />
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--ll-border))" />

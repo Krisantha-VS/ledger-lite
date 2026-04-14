@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { Plus, Target, Trash2, RefreshCw } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { CategoryIcon } from "@/components/ui/category-icon";
 import { useBudgets } from "@/features/budgets/hooks/useBudgets";
 import { useCategories } from "@/features/categories/hooks/useCategories";
@@ -52,15 +53,10 @@ export function BudgetsView() {
           <h1 className="text-lg font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>Budgets</h1>
           <p className="text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>Monthly spending limits</p>
         </div>
-        <button
-          onClick={openModal}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-medium text-white"
-          style={{ background: "hsl(var(--ll-accent))" }}
-          aria-label="New budget"
-        >
+        <Button onClick={openModal} aria-label="New budget">
           <Plus className="h-3.5 w-3.5" />
           New Budget
-        </button>
+        </Button>
       </div>
 
       {/* QW3: Summary stats bar */}
@@ -100,9 +96,7 @@ export function BudgetsView() {
           title="No budgets set"
           description="Set spending limits for your categories"
           action={
-            <button onClick={openModal} className="rounded-lg px-4 py-2 text-sm font-medium text-white" style={{ background: "hsl(var(--ll-accent))" }}>
-              Add Budget
-            </button>
+            <Button onClick={openModal} size="md">Add Budget</Button>
           }
         />
       ) : (
@@ -139,7 +133,7 @@ export function BudgetsView() {
                       )}
                     </div>
                     {over && (
-                      <span className="shrink-0 rounded bg-rose-500/10 px-1.5 py-0.5 text-[10px] font-medium text-rose-400">
+                      <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ background: "hsl(var(--ll-expense)/0.1)", color: "hsl(var(--ll-expense))" }}>
                         Over by {formatCurrency((b.spent ?? 0) - effective)}
                       </span>
                     )}

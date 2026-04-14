@@ -27,7 +27,7 @@ export const TransactionRow = memo(function TransactionRow({
   const [confirm, setConfirm] = useState(false);
 
   return (
-    <div className="group flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-white/[0.02]">
+    <div className="group flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-[hsl(var(--ll-bg-elevated)/0.5)]">
       <div
         className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg text-sm"
         style={{ background: "hsl(var(--ll-accent) / 0.08)" }}
@@ -58,7 +58,7 @@ export const TransactionRow = memo(function TransactionRow({
 
       <button
         onClick={() => onEdit(tx)}
-        className="ml-1 rounded p-1 opacity-0 transition-all group-hover:opacity-100 hover:bg-white/10"
+        className="ml-1 rounded p-1 opacity-0 transition-all group-hover:opacity-100 focus-visible:opacity-100 hover:bg-[hsl(var(--ll-bg-elevated))]"
         style={{ color: "hsl(var(--ll-text-muted))" }}
         aria-label="Edit"
       >
@@ -67,7 +67,7 @@ export const TransactionRow = memo(function TransactionRow({
 
       <button
         onClick={() => setConfirm(true)}
-        className="rounded p-1 opacity-0 transition-all group-hover:opacity-100 hover:bg-rose-500/10"
+        className="rounded p-1 opacity-0 transition-all group-hover:opacity-100 focus-visible:opacity-100 hover:bg-[hsl(var(--ll-expense)/0.1)]"
         style={{ color: "hsl(var(--ll-text-muted))" }}
         aria-label="Delete"
       >
