@@ -317,12 +317,20 @@ export function ImportView() {
       toast.success(`AI extracted ${rows.length} transactions`);
       await checkDuplicates(rows);
     } catch (err) {
+      const msg = err instanceof Error ? err.message : "AI parsing failed";
+      // Auth failures fire auth:expired → redirect to /login. No toast needed — it would
+      // flash briefly before redirect and confuse the user.
+      const isAuthFailure = ["Token expired", "Unauthorized", "Missing token", "Invalid token"].some(s => msg.includes(s));
+      if (isAuthFailure) return;
+
       if (onFail) {
+        // CSV option C: AI failed, manual column detection available
         toast.info("AI unavailable — using column detection");
         onFail();
       } else {
-        toast.error(err instanceof Error ? err.message : "AI parsing failed");
-        setMode("csv");
+        // Non-text format (PDF, XLSX, OFX…): can't manually parse, go back to upload
+        toast.error(msg);
+        setStep(1);
       }
     } finally {
       setAiParsing(false);
