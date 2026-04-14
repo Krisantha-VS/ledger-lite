@@ -1,5 +1,6 @@
 import OpenAI    from "openai";
 import Anthropic from "@anthropic-ai/sdk";
+import * as XLSX  from "xlsx";
 
 const openai   = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
@@ -251,15 +252,36 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParseResult> {
   return { ...result, provider: result.provider + " (pdf)" };
 }
 
+// ─── XLSX → CSV text ──────────────────────────────────────────────────────────
+
+function xlsxToCSV(buffer: Buffer): string {
+  const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
+  // Use the first sheet
+  const sheetName = workbook.SheetNames[0];
+  if (!sheetName) throw new Error("Excel file contains no sheets.");
+  return XLSX.utils.sheet_to_csv(workbook.Sheets[sheetName]);
+}
+
 // ─── Main router ──────────────────────────────────────────────────────────────
 
 export async function parseDocument(file: File): Promise<ParseResult> {
-  const isPDF = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
+  const name = file.name.toLowerCase();
 
-  if (isPDF) {
+  // PDF — extract text then AI
+  if (name.endsWith(".pdf")) {
     const buffer = Buffer.from(await file.arrayBuffer());
     return parsePDFWithAI(buffer);
   }
 
+  // XLSX / XLS — convert to CSV text then AI
+  if (name.endsWith(".xlsx") || name.endsWith(".xls")) {
+    const buffer = Buffer.from(await file.arrayBuffer());
+    const csv    = xlsxToCSV(buffer);
+    if (!csv || csv.trim().length < 10) throw new Error("Could not extract data from this Excel file.");
+    const result = await parseCSVWithAI(csv);
+    return { ...result, provider: result.provider + " (xlsx)" };
+  }
+
+  // CSV, OFX, QFX, TXT, MT940 — all text-based, pass directly to AI
   return parseCSVWithAI(await file.text());
 }

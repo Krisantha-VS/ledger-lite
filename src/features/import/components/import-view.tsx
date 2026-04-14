@@ -239,57 +239,48 @@ export function ImportView() {
 
   // ── File handling ──────────────────────────────────────────────────────────
 
-  const processFile = useCallback((file: File) => {
-    const isPDF = file.name.toLowerCase().endsWith(".pdf");
-    const isCSV = file.name.toLowerCase().endsWith(".csv");
+  const SUPPORTED_EXTS = [".csv", ".pdf", ".xlsx", ".xls", ".ofx", ".qfx", ".txt"];
 
-    if (!isPDF && !isCSV) {
-      toast.error("Please upload a CSV or PDF file");
-      return;
-    }
-
-    setFileName(file.name);
-    setFileObj(file);
-
-    if (isPDF) {
-      setMode("ai");
-      setStep(2);
-      runAIParse(file); // auto-trigger immediately, don't wait for state update
-      return;
-    }
-
-    // CSV — try auto-detect first
+  // Manual CSV fallback (option C) — runs only if AI fails on a CSV
+  const parseCSVManually = useCallback((file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       const text = (e.target?.result as string) ?? "";
       const rows = parseCSV(text);
       if (rows.length < 2) { toast.error("CSV appears empty or has no data rows"); return; }
-
       const hdrs = rows[0];
       const data = rows.slice(1);
       setHeaders(hdrs);
       setAllRows(data);
-
       const detected = autoDetectColumns(hdrs);
       if (detected) {
-        setColMap(detected);
-        setAutoDetected(true);
-        setIsMint(detected.mintCategory !== -1);
-        setMode("csv");
+        setColMap(detected); setAutoDetected(true); setIsMint(detected.mintCategory !== -1);
       } else {
-        setColMap(null);
-        setAutoDetected(false);
-        setIsMint(false);
+        setColMap(null); setAutoDetected(false); setIsMint(false);
         setManualDate("0");
         setManualDesc(hdrs.length > 1 ? "1" : "0");
         setManualAmount(hdrs.length > 2 ? "2" : "0");
         setManualType("-1");
-        setMode("csv"); // will offer AI fallback below
       }
-      setStep(2);
+      setMode("csv");
     };
     reader.readAsText(file);
   }, []);
+
+  const processFile = useCallback((file: File) => {
+    const name = file.name.toLowerCase();
+    if (!SUPPORTED_EXTS.some(e => name.endsWith(e))) {
+      toast.error("Unsupported file type. Upload CSV, PDF, XLSX, OFX, QFX, or TXT.");
+      return;
+    }
+    setFileName(file.name);
+    setFileObj(file);
+    setMode("ai");
+    setStep(2);
+    // Option C: AI for all formats; CSV falls back to manual if AI fails
+    const isCSV = name.endsWith(".csv");
+    runAIParse(file, isCSV ? () => parseCSVManually(file) : undefined);
+  }, [parseCSVManually]);
 
   const onDrop = useCallback((e: DragEvent<HTMLDivElement>) => {
     e.preventDefault(); setDragging(false);
@@ -305,7 +296,7 @@ export function ImportView() {
 
   // ── AI parse trigger ───────────────────────────────────────────────────────
 
-  const runAIParse = async (overrideFile?: File) => {
+  const runAIParse = async (overrideFile?: File, onFail?: () => void) => {
     const f = overrideFile ?? fileObj;
     if (!f) return;
     setAiParsing(true);
@@ -326,8 +317,13 @@ export function ImportView() {
       toast.success(`AI extracted ${rows.length} transactions`);
       await checkDuplicates(rows);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "AI parsing failed");
-      setMode("csv"); // fall back to manual
+      if (onFail) {
+        toast.info("AI unavailable — using column detection");
+        onFail();
+      } else {
+        toast.error(err instanceof Error ? err.message : "AI parsing failed");
+        setMode("csv");
+      }
     } finally {
       setAiParsing(false);
     }
@@ -541,16 +537,16 @@ export function ImportView() {
                 Drop your bank file here, or click to browse
               </p>
               <p className="mt-1 text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>
-                CSV or PDF · Any bank · AI-powered extraction
+                CSV · PDF · XLSX · OFX · QFX · TXT — Any bank
               </p>
             </div>
-            <input ref={fileRef} type="file" accept=".csv,.pdf" className="hidden" onChange={onFileChange} />
+            <input ref={fileRef} type="file" accept=".csv,.pdf,.xlsx,.xls,.ofx,.qfx,.txt" className="hidden" onChange={onFileChange} />
           </div>
 
           <div className="mt-4 flex items-center gap-2 rounded-lg px-3 py-2.5" style={{ background: "hsl(var(--ll-accent) / 0.06)" }}>
             <Sparkles className="h-3.5 w-3.5 flex-shrink-0" style={{ color: "hsl(var(--ll-accent))" }} />
             <p className="text-xs" style={{ color: "hsl(var(--ll-text-secondary))" }}>
-              PDF statements are parsed automatically using AI — no column mapping needed.
+              All formats are parsed by AI automatically. CSV falls back to column detection if AI is unavailable.
             </p>
           </div>
         </div>

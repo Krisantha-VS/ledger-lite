@@ -7,9 +7,8 @@ export async function POST(req: Request) {
   try {
     await getUserId(req); // auth check
 
-    if (!process.env.OPENAI_API_KEY) {
-      return fail("AI parsing is not configured", 503);
-    }
+    const hasAI = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.DEEPSEEK_API_KEY;
+    if (!hasAI) return fail("AI parsing is not configured", 503);
 
     const contentType = req.headers.get("content-type") ?? "";
     if (!contentType.includes("multipart/form-data")) {
@@ -28,14 +27,20 @@ export async function POST(req: Request) {
       return fail("File too large (max 10 MB)", 413);
     }
 
-    const allowed = ["text/csv", "application/csv", "text/plain", "application/pdf"];
+    const allowedMimes = [
+      "text/csv", "application/csv", "text/plain", "application/pdf",
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "application/vnd.ms-excel",
+      "application/x-ofx", "application/ofx",
+    ];
+    const allowedExts = [".csv", ".pdf", ".xlsx", ".xls", ".ofx", ".qfx", ".txt"];
+    const name = file.name.toLowerCase();
     const isAllowed =
-      allowed.some(t => file.type.includes(t)) ||
-      file.name.toLowerCase().endsWith(".csv") ||
-      file.name.toLowerCase().endsWith(".pdf");
+      allowedMimes.some(t => file.type.includes(t)) ||
+      allowedExts.some(e => name.endsWith(e));
 
     if (!isAllowed) {
-      return fail("Unsupported file type. Upload a CSV or PDF.", 415);
+      return fail("Unsupported file type. Upload CSV, PDF, XLSX, OFX, QFX, or TXT.", 415);
     }
 
     // Zero-disk-write: file lives in memory, never touches disk
