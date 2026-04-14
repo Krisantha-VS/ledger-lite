@@ -558,8 +558,8 @@ export function ImportView() {
       {step === 2 && (
         <div className="space-y-4">
 
-          {/* Status bar */}
-          <div className="ll-card p-5">
+          {/* Status bar — hidden in AI mode once parsing is done (SmartSummaryCard takes over) */}
+          {!(mode === "ai" && aiRows.length > 0) && <div className="ll-card p-5">
             <div className="flex items-start gap-3">
               {mode === "ai" && aiParsing ? (
                 <div className="mt-0.5 h-4 w-4 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" style={{ color: "hsl(var(--ll-accent))" }} />
@@ -615,7 +615,7 @@ export function ImportView() {
                 </div>
               )}
             </div>
-          </div>
+          </div>}
 
           {/* Low-confidence warning */}
           {mode === "ai" && lowConfidenceCount > 0 && (
@@ -668,8 +668,8 @@ export function ImportView() {
             </div>
           )}
 
-          {/* Account + Category */}
-          <div className="ll-card p-5">
+          {/* Account + Category — hidden in AI mode (account via SmartSummaryCard, category per-row) */}
+          {mode !== "ai" && <div className="ll-card p-5">
             <h2 className="mb-4 text-sm font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>Import settings</h2>
             <div className="space-y-3">
               <div>
@@ -691,7 +691,7 @@ export function ImportView() {
               </div>
               <div>
                 <label className="mb-1 block text-xs font-medium" style={{ color: "hsl(var(--ll-text-secondary))" }}>
-                  Default category <span style={{ color: "hsl(var(--ll-text-muted))" }}>(optional{mode === "ai" ? " — AI suggests categories per row" : ""})</span>
+                  Default category <span style={{ color: "hsl(var(--ll-text-muted))" }}>(optional)</span>
                 </label>
                 {categoriesLoading ? (
                   <div className="ll-input text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>Loading…</div>
@@ -703,7 +703,7 @@ export function ImportView() {
                 )}
               </div>
             </div>
-          </div>
+          </div>}
 
           {/* Preview table */}
           {previewRows.length > 0 && (
