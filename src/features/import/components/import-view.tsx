@@ -1008,17 +1008,22 @@ function SmartSummaryCard({
 
       <div className="divide-y" style={{ borderColor: "hsl(var(--ll-border)/0.6)" }}>
 
-        {/* Account section */}
-        {hasAccountInfo && (
-          <div className="flex items-start gap-3 px-5 py-4">
+        {/* Account section — always rendered so user can always pick an account */}
+        <div className="flex items-start gap-3 px-5 py-4">
             <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg" style={{ background: "hsl(var(--ll-accent)/0.1)" }}>
               <Building2 className="h-3.5 w-3.5" style={{ color: "hsl(var(--ll-accent))" }} />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
-                {[meta?.bankName, meta?.accountType, meta?.accountNumber].filter(Boolean).join(" · ")}
-                {meta?.currency && <span className="ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "hsl(var(--ll-accent)/0.1)", color: "hsl(var(--ll-accent))" }}>{meta.currency}</span>}
-              </p>
+              {hasAccountInfo ? (
+                <p className="text-xs font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
+                  {[meta?.bankName, meta?.accountType, meta?.accountNumber].filter(Boolean).join(" · ")}
+                  {meta?.currency && <span className="ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-semibold" style={{ background: "hsl(var(--ll-accent)/0.1)", color: "hsl(var(--ll-accent))" }}>{meta.currency}</span>}
+                </p>
+              ) : (
+                <p className="text-xs font-medium" style={{ color: "hsl(var(--ll-text-muted))" }}>
+                  Bank not detected
+                </p>
+              )}
               <p className="mt-0.5 text-[11px]" style={{ color: "hsl(var(--ll-text-muted))" }}>
                 Assign transactions to an account
               </p>
@@ -1057,7 +1062,6 @@ function SmartSummaryCard({
               </div>
             </div>
           </div>
-        )}
 
         {/* Statement period */}
         {hasPeriod && (
