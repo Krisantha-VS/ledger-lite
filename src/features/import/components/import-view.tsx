@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, DragEvent, ChangeEvent } from "react";
-import { Upload, FileText, ChevronRight, Check, AlertCircle, Sparkles, AlertTriangle, Building2, Calendar, ArrowLeftRight } from "lucide-react";
+import { Upload, FileText, ChevronRight, Check, AlertCircle, Sparkles, AlertTriangle, Building2, Calendar, ArrowLeftRight, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { authFetch } from "@/shared/lib/auth-client";
 import { useAccounts } from "@/features/accounts/hooks/useAccounts";
@@ -207,9 +207,9 @@ export function ImportView() {
   const [aiRows, setAiRows]       = useState<ParsedRow[]>([]);
   const [aiParsing, setAiParsing] = useState(false);
   const [aiModel, setAiModel]     = useState("");
-  const [statementMeta, setStatementMeta]         = useState<StatementMeta | null>(null);
-  const [smartCardDismissed, setSmartCardDismissed] = useState(false);
-  const [excludeTransfers, setExcludeTransfers]   = useState(true);
+  const [statementMeta, setStatementMeta]       = useState<StatementMeta | null>(null);
+  const [smartCardCollapsed, setSmartCardCollapsed] = useState(false);
+  const [excludeTransfers, setExcludeTransfers] = useState(true);
 
   // Duplicate detection
   type RowWithDup = ParsedRow & { isDuplicate?: boolean };
@@ -322,7 +322,7 @@ export function ImportView() {
       setAiRows(rows);
       setAiModel(json.data.model ?? "");
       setStatementMeta(json.data.meta ?? null);
-      setSmartCardDismissed(false);
+      setSmartCardCollapsed(false);
       toast.success(`AI extracted ${rows.length} transactions`);
       await checkDuplicates(rows);
     } catch (err) {
@@ -387,18 +387,20 @@ export function ImportView() {
   const newCount      = rowsWithDups.filter(r => !r.isDuplicate).length;
   const checkedCount  = checkedRows.size;
 
-  // ── Smart card continue ────────────────────────────────────────────────────
-
-  const onSmartCardContinue = () => {
-    if (excludeTransfers && rowsWithDups.length > 0) {
-      setCheckedRows(prev => {
-        const next = new Set(prev);
-        rowsWithDups.forEach((r, i) => { if (r.isTransfer) next.delete(i); });
-        return next;
-      });
+  // ── Auto-collapse smart card when account first selected ──────────────────
+  useEffect(() => {
+    if (accountId && mode === "ai" && !smartCardCollapsed) {
+      if (excludeTransfers && rowsWithDups.length > 0) {
+        setCheckedRows(prev => {
+          const next = new Set(prev);
+          rowsWithDups.forEach((r, i) => { if (r.isTransfer) next.delete(i); });
+          return next;
+        });
+      }
+      setSmartCardCollapsed(true);
     }
-    setSmartCardDismissed(true);
-  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId]);
 
   // ── Import ─────────────────────────────────────────────────────────────────
 
@@ -474,7 +476,7 @@ export function ImportView() {
     setHeaders([]); setAllRows([]); setColMap(null);
     setAutoDetected(false); setIsMint(false);
     setAiRows([]); setAiModel(""); setStatementMeta(null);
-    setSmartCardDismissed(false); setExcludeTransfers(true);
+    setSmartCardCollapsed(false); setExcludeTransfers(true);
     setRowsWithDups([]); setCheckedRows(new Set());
     setRecurringSuggestions(new Map()); setRecurringOverrides(new Map());
     setAccountId(""); setCategoryId(""); setImportResult(null);
@@ -627,8 +629,8 @@ export function ImportView() {
             </div>
           )}
 
-          {/* Smart Summary Card — AI mode only, shown before row review */}
-          {mode === "ai" && aiRows.length > 0 && !smartCardDismissed && (
+          {/* Smart Summary Card — always visible in AI mode; collapses to strip when account selected */}
+          {mode === "ai" && aiRows.length > 0 && (
             <SmartSummaryCard
               meta={statementMeta}
               rows={aiRows}
@@ -639,7 +641,8 @@ export function ImportView() {
               accountId={accountId}
               onAccountSelect={setAccountId}
               createAccount={createAccount}
-              onContinue={onSmartCardContinue}
+              collapsed={smartCardCollapsed}
+              onExpand={() => setSmartCardCollapsed(false)}
             />
           )}
 
@@ -902,7 +905,8 @@ interface SmartSummaryCardProps {
   accountId:               string;
   onAccountSelect:         (id: string) => void;
   createAccount:           (p: { name: string; type: string; startingBalance: number; colour: string }) => Promise<import("@/shared/types").Account>;
-  onContinue:              () => void;
+  collapsed:               boolean;
+  onExpand:                () => void;
 }
 
 const ACCOUNT_TYPE_LABELS: Record<string, string> = {
@@ -916,7 +920,8 @@ const ACCOUNT_TYPE_ORDER = ["checking", "savings", "cash", "credit", "investment
 
 function SmartSummaryCard({
   meta, rows, excludeTransfers, onExcludeTransfersChange,
-  accounts, accountsLoading, accountId, onAccountSelect, createAccount, onContinue,
+  accounts, accountsLoading, accountId, onAccountSelect, createAccount,
+  collapsed, onExpand,
 }: SmartSummaryCardProps) {
   const [creating, setCreating] = useState(false);
 
@@ -963,6 +968,37 @@ function SmartSummaryCard({
   const hasAccountInfo = meta?.bankName || meta?.accountNumber;
   const hasPeriod      = meta?.statementFrom || meta?.statementTo;
   const hasTransfers   = transferCount > 0;
+  const selectedAccount = accounts.find(a => String(a.id) === accountId);
+
+  // ── Collapsed strip ──────────────────────────────────────────────────────
+  if (collapsed) {
+    return (
+      <div className="ll-card px-4 py-3 flex items-center gap-3">
+        <Building2 className="h-4 w-4 shrink-0" style={{ color: "hsl(var(--ll-accent))" }} />
+        <div className="flex-1 min-w-0 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs" style={{ color: "hsl(var(--ll-text-secondary))" }}>
+          <span className="font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
+            {selectedAccount?.name ?? meta?.bankName ?? "Account"}
+          </span>
+          {meta?.accountType && <span style={{ color: "hsl(var(--ll-text-muted))" }}>· {meta.accountType}</span>}
+          {hasPeriod && (
+            <span style={{ color: "hsl(var(--ll-text-muted))" }}>
+              · {formatDate(meta?.statementFrom ?? null)} – {formatDate(meta?.statementTo ?? null)}
+            </span>
+          )}
+          <span style={{ color: "hsl(var(--ll-text-muted))" }}>
+            · {excludeTransfers ? nonTransferCount : totalCount} transaction{(excludeTransfers ? nonTransferCount : totalCount) !== 1 ? "s" : ""}
+          </span>
+        </div>
+        <button
+          onClick={onExpand}
+          className="flex-shrink-0 flex items-center gap-1 rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+          style={{ background: "hsl(var(--ll-bg-elevated))", color: "hsl(var(--ll-text-secondary))", border: "1px solid hsl(var(--ll-border))" }}
+        >
+          <Pencil className="h-3 w-3" /> Edit
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="ll-card overflow-hidden">
@@ -1108,15 +1144,6 @@ function SmartSummaryCard({
         )}
       </div>
 
-      <div className="px-5 py-4">
-        <button
-          onClick={onContinue}
-          className="flex w-full items-center justify-center gap-1.5 rounded-lg py-2.5 text-sm font-medium text-white transition-colors"
-          style={{ background: "hsl(var(--ll-accent))" }}
-        >
-          Review transactions <ChevronRight className="h-4 w-4" />
-        </button>
-      </div>
     </div>
   );
 }
