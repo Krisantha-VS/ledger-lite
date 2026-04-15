@@ -7,6 +7,7 @@ import { motion, AnimatePresence } from "framer-motion";
 const LIGHT = [
   { src: "/screenshots/light-dashboard.png",    label: "Dashboard",    desc: "KPIs, cash flow & projections" },
   { src: "/screenshots/light-transactions.png", label: "Transactions", desc: "Full transaction history & search" },
+  { src: "/screenshots/light-import.png",       label: "AI Import",    desc: "Drop any bank file — parsed in 0.3s" },
   { src: "/screenshots/light-goals.png",        label: "Goals",        desc: "Savings targets with progress" },
   { src: "/screenshots/light-accounts.png",     label: "Accounts",     desc: "All accounts with balances" },
   { src: "/screenshots/light-settings.png",     label: "Settings",     desc: "Currency, locale & preferences" },
@@ -20,14 +21,28 @@ const DARK = [
   { src: "/screenshots/dark-accounts.png",     label: "Accounts",     desc: "All accounts with balances" },
 ];
 
-// 5-phone fan: sizes + rotations peak at centre
-const SIZES     = [144, 158, 176, 158, 144];
-const ROTATIONS = ["-6deg", "-3deg", "0deg", "3deg", "6deg"];
-const Y_OFFSETS = [24, 12, 0, 12, 24]; // raise centre phone
+// Dynamically compute fan layout for any number of screens
+function fanLayout(count: number) {
+  const spread = count <= 5 ? 6 : 7.5; // total angle spread per side
+  const step   = (spread * 2) / (count - 1);
+  const maxW   = count <= 5 ? 176 : 160;
+  const minW   = count <= 5 ? 144 : 132;
+
+  return Array.from({ length: count }, (_, i) => {
+    const mid     = (count - 1) / 2;
+    const dist    = Math.abs(i - mid);          // distance from centre
+    const normDist = dist / mid;                // 0 = centre, 1 = edge
+    const deg     = -spread + i * step;
+    const width   = Math.round(maxW - normDist * (maxW - minW));
+    const yOffset = Math.round(normDist * normDist * 28); // quadratic curve
+    return { deg: `${deg.toFixed(1)}deg`, width, yOffset };
+  });
+}
 
 export function Screenshots() {
   const [mode, setMode] = useState<"light" | "dark">("light");
   const screens = mode === "light" ? LIGHT : DARK;
+  const layout = fanLayout(screens.length);
 
   return (
     <section className="border-t overflow-hidden" style={{ borderColor: "var(--land-border)" }}>
@@ -76,17 +91,17 @@ export function Screenshots() {
               <motion.div
                 key={mode + screen.src}
                 initial={{ opacity: 0, y: 32, scale: 0.93 }}
-                animate={{ opacity: 1, y: Y_OFFSETS[i], scale: 1 }}
+                animate={{ opacity: 1, y: layout[i].yOffset, scale: 1 }}
                 exit={{ opacity: 0, y: -10, scale: 0.96 }}
                 transition={{ duration: 0.38, delay: i * 0.06 }}
                 className="flex flex-col items-center gap-3 shrink-0"
-                style={{ transform: `rotate(${ROTATIONS[i]})` }}
+                style={{ transform: `rotate(${layout[i].deg})` }}
               >
                 <div
                   className="relative overflow-hidden"
                   style={{
                     borderRadius: "20px",
-                    width: `${SIZES[i]}px`,
+                    width: `${layout[i].width}px`,
                     border: "1px solid var(--land-border)",
                     boxShadow: "var(--land-shadow)",
                   }}
@@ -102,7 +117,7 @@ export function Screenshots() {
                 </div>
                 <div
                   className="text-center"
-                  style={{ transform: `rotate(calc(-1 * ${ROTATIONS[i]}))` }}
+                  style={{ transform: `rotate(calc(-1 * ${layout[i].deg}))` }}
                 >
                   <div className="text-[11px] font-semibold" style={{ color: "var(--land-text)" }}>{screen.label}</div>
                   <div className="mt-0.5 text-[9px]" style={{ color: "var(--land-dim)", maxWidth: "110px" }}>{screen.desc}</div>
