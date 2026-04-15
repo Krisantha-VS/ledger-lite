@@ -10,7 +10,7 @@ export function CTA() {
         {/* Section tag */}
         <div className="mb-4 flex items-center gap-3">
           <span className="font-mono text-[11px] font-bold" style={{ color: "#6366F1" }}>
-            03
+            04
           </span>
           <span className="font-mono text-[11px]" style={{ color: "#71717A" }}>
             — START NOW
