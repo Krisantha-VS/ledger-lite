@@ -1,123 +1,141 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 
-const SCREENS = [
-  {
-    src: "/screenshots/light-dashboard.png",
-    label: "Dashboard",
-    desc: "KPIs, cash flow & recent transactions at a glance",
-    rotate: "-3deg",
-    delay: 0,
-  },
-  {
-    src: "/screenshots/light-goals.png",
-    label: "Goals",
-    desc: "Track savings targets with progress bars",
-    rotate: "0deg",
-    delay: 0.1,
-  },
-  {
-    src: "/screenshots/light-settings.png",
-    label: "Settings",
-    desc: "Currency, locale, theme — fully customisable",
-    rotate: "3deg",
-    delay: 0.2,
-  },
+const LIGHT = [
+  { src: "/screenshots/light-dashboard.png", label: "Dashboard",  desc: "KPIs, cash flow & recent transactions" },
+  { src: "/screenshots/light-goals.png",     label: "Goals",      desc: "Track savings targets with progress" },
+  { src: "/screenshots/light-settings.png",  label: "Settings",   desc: "Currency, locale & theme preferences" },
 ];
 
+const DARK = [
+  { src: "/screenshots/dark-dashboard.png",   label: "Dashboard",   desc: "KPIs, cash flow & recent transactions" },
+  { src: "/screenshots/dark-categories.png",  label: "Categories",  desc: "Income & expense categories organised" },
+  { src: "/screenshots/dark-goals.png",       label: "Goals",       desc: "Track savings targets with progress" },
+];
+
+const ROTATIONS = ["-4deg", "0deg", "4deg"];
+
 export function Screenshots() {
+  const [mode, setMode] = useState<"light" | "dark">("light");
+  const screens = mode === "light" ? LIGHT : DARK;
+
   return (
     <section
       className="border-t overflow-hidden"
       style={{ borderColor: "rgba(255,255,255,0.06)" }}
     >
       <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
-        {/* Section tag */}
-        <div className="mb-4 flex items-center gap-3">
-          <span className="font-mono text-[11px] font-bold" style={{ color: "#6366F1" }}>
-            03
-          </span>
-          <span className="font-mono text-[11px]" style={{ color: "#71717A" }}>
-            — IN USE
-          </span>
-        </div>
-        <div
-          className="mb-8 h-px w-72"
-          style={{ background: "rgba(255,255,255,0.07)" }}
-        />
 
-        <div className="mb-12 flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
-          <h2 className="text-3xl font-bold leading-tight tracking-tight text-white lg:text-4xl">
-            Clean on every screen.
-            <br />
-            <span style={{ color: "#71717A" }}>Light or dark.</span>
-          </h2>
-          <p className="text-sm lg:text-right" style={{ color: "#71717A", maxWidth: "320px" }}>
-            Designed for everyday use — not just the demo.
-            Fast, readable, and works on any device.
-          </p>
-        </div>
+        {/* Header row */}
+        <div className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <div className="mb-4 flex items-center gap-3">
+              <span className="font-mono text-[11px] font-bold" style={{ color: "#6366F1" }}>03</span>
+              <span className="font-mono text-[11px]" style={{ color: "#71717A" }}>— IN USE</span>
+            </div>
+            <div className="mb-6 h-px w-72" style={{ background: "rgba(255,255,255,0.07)" }} />
+            <h2 className="text-3xl font-bold leading-tight tracking-tight text-white lg:text-4xl">
+              Clean on every screen.
+              <br />
+              <span style={{ color: "#71717A" }}>Light or dark.</span>
+            </h2>
+          </div>
 
-        {/* Screenshot row */}
-        <div className="flex items-end justify-center gap-4 lg:gap-8">
-          {SCREENS.map((screen, i) => (
-            <motion.div
-              key={screen.label}
-              initial={{ opacity: 0, y: 24 }}
-              whileInView={{ opacity: 1, y: 0 }}
-              viewport={{ once: true, margin: "-60px" }}
-              transition={{ duration: 0.5, delay: screen.delay }}
-              className="flex flex-col items-center gap-3"
-              style={{ transform: `rotate(${screen.rotate})` }}
+          {/* Toggle */}
+          <div
+            className="flex self-start items-center gap-1 rounded-lg p-1 lg:self-auto"
+            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+          >
+            <button
+              onClick={() => setMode("light")}
+              className="relative flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold transition-colors"
+              style={{
+                background: mode === "light" ? "#ffffff" : "transparent",
+                color: mode === "light" ? "#0A0A0A" : "#71717A",
+              }}
             >
-              {/* Phone frame */}
-              <div
-                className="relative overflow-hidden"
-                style={{
-                  borderRadius: "20px",
-                  boxShadow: "0 32px 64px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.06)",
-                  width: i === 1 ? "200px" : "172px",
-                }}
-              >
-                <Image
-                  src={screen.src}
-                  alt={screen.label + " screenshot"}
-                  width={375}
-                  height={812}
-                  style={{ width: "100%", height: "auto", display: "block" }}
-                  priority={i === 0}
-                />
-              </div>
-
-              {/* Label */}
-              <div className="text-center" style={{ transform: `rotate(calc(-1 * ${screen.rotate}))` }}>
-                <div className="text-xs font-semibold text-white">{screen.label}</div>
-                <div
-                  className="mt-0.5 text-[10px] leading-snug"
-                  style={{ color: "#4B4B5A", maxWidth: "140px" }}
-                >
-                  {screen.desc}
-                </div>
-              </div>
-            </motion.div>
-          ))}
+              <span
+                className="inline-block h-2.5 w-2.5 rounded-full border-2"
+                style={{ borderColor: mode === "light" ? "#6366F1" : "rgba(255,255,255,0.2)", background: mode === "light" ? "#f4f6fb" : "transparent" }}
+              />
+              Light
+            </button>
+            <button
+              onClick={() => setMode("dark")}
+              className="relative flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold transition-colors"
+              style={{
+                background: mode === "dark" ? "#1a1d27" : "transparent",
+                color: mode === "dark" ? "#e5e7eb" : "#71717A",
+              }}
+            >
+              <span
+                className="inline-block h-2.5 w-2.5 rounded-full border-2"
+                style={{ borderColor: mode === "dark" ? "#6366F1" : "rgba(255,255,255,0.2)", background: mode === "dark" ? "#0f1117" : "transparent" }}
+              />
+              Dark
+            </button>
+          </div>
         </div>
 
-        {/* Light/dark callout */}
-        <div className="mt-14 flex items-center justify-center gap-3">
-          <div
-            className="h-px flex-1"
-            style={{ background: "rgba(255,255,255,0.05)", maxWidth: "200px" }}
-          />
-          <span className="text-xs" style={{ color: "#4B4B5A" }}>
-            Showing light mode · dark mode coming next
+        {/* Screenshot fan */}
+        <div className="relative flex items-end justify-center gap-3 lg:gap-6" style={{ minHeight: "420px" }}>
+          <AnimatePresence mode="wait">
+            {screens.map((screen, i) => (
+              <motion.div
+                key={mode + screen.src}
+                initial={{ opacity: 0, y: 28, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, y: -12, scale: 0.97 }}
+                transition={{ duration: 0.35, delay: i * 0.07 }}
+                className="flex flex-col items-center gap-3"
+                style={{ transform: `rotate(${ROTATIONS[i]})` }}
+              >
+                {/* Phone frame */}
+                <div
+                  className="relative overflow-hidden"
+                  style={{
+                    borderRadius: "22px",
+                    width: i === 1 ? "190px" : "164px",
+                    boxShadow: mode === "dark"
+                      ? "0 24px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06)"
+                      : "0 24px 60px rgba(0,0,0,0.45), 0 0 0 1px rgba(255,255,255,0.1)",
+                  }}
+                >
+                  <Image
+                    src={screen.src}
+                    alt={screen.label}
+                    width={375}
+                    height={812}
+                    style={{ width: "100%", height: "auto", display: "block" }}
+                    priority={i === 0}
+                  />
+                </div>
+
+                {/* Caption */}
+                <div
+                  className="text-center"
+                  style={{ transform: `rotate(calc(-1 * ${ROTATIONS[i]}))` }}
+                >
+                  <div className="text-xs font-semibold text-white">{screen.label}</div>
+                  <div className="mt-0.5 text-[10px]" style={{ color: "#4B4B5A", maxWidth: "130px" }}>
+                    {screen.desc}
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+
+        {/* Bottom rule */}
+        <div className="mt-14 flex items-center justify-center gap-4">
+          <div className="h-px flex-1" style={{ background: "rgba(255,255,255,0.05)", maxWidth: "180px" }} />
+          <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "#2D2D3A" }}>
+            {mode === "light" ? "Light mode" : "Dark mode"} · {screens.length} screens
           </span>
-          <div
-            className="h-px flex-1"
-            style={{ background: "rgba(255,255,255,0.05)", maxWidth: "200px" }}
-          />
+          <div className="h-px flex-1" style={{ background: "rgba(255,255,255,0.05)", maxWidth: "180px" }} />
         </div>
       </div>
     </section>
