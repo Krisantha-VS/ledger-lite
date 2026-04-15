@@ -1,15 +1,17 @@
 import { jwtVerify, errors as joseErrors } from "jose";
 import { AuthError } from "@/lib/api";
 
-const secretStr = process.env.AUTH_JWT_SECRET ?? process.env.JWT_ACCESS_SECRET;
-if (!secretStr) throw new Error("AUTH_JWT_SECRET environment variable is required");
-const secret = new TextEncoder().encode(secretStr);
+function getSecret(): Uint8Array {
+  const secretStr = process.env.AUTH_JWT_SECRET ?? process.env.JWT_ACCESS_SECRET;
+  if (!secretStr) throw new Error("AUTH_JWT_SECRET environment variable is required");
+  return new TextEncoder().encode(secretStr);
+}
 
 export async function verifyJWT(
   token: string
 ): Promise<{ sub: string; name?: string; email?: string }> {
   try {
-    const { payload } = await jwtVerify(token, secret);
+    const { payload } = await jwtVerify(token, getSecret());
     if (!payload.sub) throw new AuthError("Invalid token: missing sub");
     return payload as { sub: string; name?: string; email?: string };
   } catch (e) {
