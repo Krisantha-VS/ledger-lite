@@ -41,7 +41,7 @@ export async function GET(req: NextRequest) {
   const secure       = isProduction ? '; Secure' : '';
 
   const html = `<!DOCTYPE html><html><head>
-    <meta http-equiv="refresh" content="0;url=${APP_URL}">
+    <meta http-equiv="refresh" content="0;url=${APP_URL}/dashboard">
     <title>Signing in...</title>
   </head><body></body></html>`;
 

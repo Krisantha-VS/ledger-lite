@@ -1,4 +1,12 @@
-<svg xmlns='http://www.w3.org/2000/svg' width='512' height='512' viewBox='0 0 512 512'>
-  <rect width='512' height='512' rx='102.4' fill='#6366f1'/>
-  <text x='256' y='368.64' font-family='system-ui,sans-serif' font-weight='800' font-size='281.6' fill='white' text-anchor='middle'>L</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="100" fill="#6366f1"/>
+  <polyline
+    points="52,390 148,272 240,320 340,176 436,112"
+    fill="none"
+    stroke="white"
+    stroke-width="42"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+  />
+  <circle cx="436" cy="112" r="42" fill="white"/>
 </svg>

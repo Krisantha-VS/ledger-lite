@@ -1,6 +1,7 @@
 "use client";
 
-import { Wallet, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
+import { BrandMark } from "@/components/ui/brand-mark";
 
 export function LoginForm() {
   return (
@@ -24,7 +25,7 @@ export function LoginForm() {
                 outline: "1px solid hsl(var(--ll-accent) / 0.3)",
               }}
             >
-              <Wallet className="h-5 w-5" style={{ color: "hsl(var(--ll-accent))" }} />
+              <BrandMark className="h-5 w-5" style={{ color: "hsl(var(--ll-accent))" }} />
             </div>
             <div className="text-center">
               <h1 className="text-lg font-semibold tracking-tight" style={{ color: "hsl(var(--ll-text-primary))" }}>

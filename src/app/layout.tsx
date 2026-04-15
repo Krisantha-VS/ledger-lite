@@ -11,9 +11,16 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: { default: "LedgerLite", template: "%s | LedgerLite" },
+  title: { default: "LedgerLite", template: "LedgerLite - %s" },
   description: "Personal finance tracker with smart insights. Track income, expenses, budgets and savings goals.",
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000"),
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+      { url: "/icon-192.svg", sizes: "192x192", type: "image/svg+xml" },
+    ],
+    apple: "/icon-192.svg",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

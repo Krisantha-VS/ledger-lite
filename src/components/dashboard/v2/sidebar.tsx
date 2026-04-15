@@ -6,6 +6,7 @@ import {
   Wallet, LayoutDashboard, ArrowUpDown, PiggyBank,
   Target, BarChart3, Settings, Tag, Upload, ChevronRight, Repeat2,
 } from "lucide-react";
+import { BrandMark } from "@/components/ui/brand-mark";
 import { cn } from "@/shared/lib/utils";
 
 const NAV = [
@@ -35,7 +36,7 @@ export function SidebarV2() {
       {/* Brand */}
       <div className="mb-8 flex items-center gap-3 px-2">
         <div className="flex h-8 w-8 items-center justify-center rounded-md bg-[hsl(var(--v2-accent))] text-white shadow-sm">
-          <Wallet className="h-4 w-4" />
+          <BrandMark className="h-4 w-4" />
         </div>
         <div className="flex flex-col">
           <span className="text-sm font-bold tracking-tight text-[hsl(var(--v2-text-primary))]">

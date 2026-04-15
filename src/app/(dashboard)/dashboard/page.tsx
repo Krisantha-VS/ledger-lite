@@ -5,7 +5,7 @@ import { BudgetAlert } from "@/features/dashboard/components/budget-alert";
 import { CashflowWidget } from "@/features/dashboard/components/cashflow-widget";
 import { RecurringSuggestionsLoader } from "@/features/dashboard/components/recurring-suggestions-loader";
 
-export const metadata: Metadata = { title: "Dashboard · LedgerLite" };
+export const metadata: Metadata = { title: "Dashboard" };
 
 export default function DashboardPage() {
   return (

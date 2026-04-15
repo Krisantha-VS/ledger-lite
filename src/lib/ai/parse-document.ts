@@ -217,16 +217,20 @@ export async function parseCSVWithAI(csvText: string): Promise<ParseResult> {
 
   // Fallback: DeepSeek-V3
   if (process.env.DEEPSEEK_API_KEY) {
-    const res = await deepseek.chat.completions.create({
-      model:       "deepseek-chat",
-      temperature: 0,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user",   content: userMessage },
-      ],
-    });
-    const parsed = parseJSON(res.choices[0]?.message?.content ?? "{}");
-    return { ...parsed, provider: "deepseek", model: "deepseek-chat" };
+    try {
+      const res = await deepseek.chat.completions.create({
+        model:       "deepseek-chat",
+        temperature: 0,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user",   content: userMessage },
+        ],
+      });
+      const parsed = parseJSON(res.choices[0]?.message?.content ?? "{}");
+      return { ...parsed, provider: "deepseek", model: "deepseek-chat" };
+    } catch (err) {
+      console.error("[parse-document] DeepSeek failed:", err instanceof Error ? err.message : err);
+    }
   }
 
   throw new Error("No AI provider configured. Add OPENAI_API_KEY, ANTHROPIC_API_KEY, or DEEPSEEK_API_KEY.");
@@ -243,7 +247,7 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParseResult> {
   const parsed = await pdfParse(pdfBuffer);
   const pdfText = parsed.text?.trim();
 
-  if (!pdfText || pdfText.length < 20) {
+  if (!pdfText || pdfText.replace(/\s+/g, "").length < 20) {
     throw new Error("Could not extract text from this PDF. It may be a scanned image. Please export as CSV from your bank instead.");
   }
 

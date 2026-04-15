@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Wallet, Lock } from "lucide-react";
+import { Lock } from "lucide-react";
+import { BrandMark } from "@/components/ui/brand-mark";
 import { AUTH_CLIENT_ID } from "@/shared/config";
 
 export function RegisterForm() {
@@ -46,7 +47,7 @@ export function RegisterForm() {
               className="flex h-11 w-11 items-center justify-center rounded-xl"
               style={{ background: "hsl(var(--ll-accent) / 0.15)" }}
             >
-              <Wallet className="h-5 w-5" style={{ color: "hsl(var(--ll-accent))" }} />
+              <BrandMark className="h-5 w-5" style={{ color: "hsl(var(--ll-accent))" }} />
             </div>
             <div className="text-center">
               <h1 className="text-lg font-semibold tracking-tight" style={{ color: "hsl(var(--ll-text-primary))" }}>

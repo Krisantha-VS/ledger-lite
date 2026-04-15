@@ -410,6 +410,10 @@ export function ImportView() {
 
   const handleImport = async () => {
     if (!accountId) { toast.error("Please select an account"); return; }
+    if (mode === "ai" && rowsWithDups.length > 0 && checkedRows.size === 0) {
+      toast.error("No transactions selected. Check at least one row to import.");
+      return;
+    }
 
     let validRows: ParsedRow[];
     let invalidCount = 0;
@@ -498,7 +502,7 @@ export function ImportView() {
         <Upload className="h-5 w-5" style={{ color: "hsl(var(--ll-accent))" }} />
         <div>
           <h1 className="text-lg font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>Import Transactions</h1>
-          <p className="text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>Upload a CSV or PDF bank statement</p>
+          <p className="text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>Upload a bank statement (CSV, PDF, XLSX, OFX, QFX, TXT)</p>
         </div>
       </div>
 
@@ -744,8 +748,8 @@ export function ImportView() {
                         <tr key={i} style={{
                           borderBottom: i < previewRows.length - 1 ? "1px solid hsl(var(--ll-border) / 0.5)" : undefined,
                           background: isDup
-                            ? "hsl(48 96% 50% / 0.05)"
-                            : lowConf ? "hsl(38 92% 50% / 0.04)" : undefined,
+                            ? "hsl(var(--ll-warning) / 0.05)"
+                            : lowConf ? "hsl(var(--ll-warning) / 0.04)" : undefined,
                           opacity: mode === "ai" && rowsWithDups.length > 0 && !isChecked ? 0.45 : 1,
                         }}>
                           {mode === "ai" && rowsWithDups.length > 0 && (
@@ -766,13 +770,13 @@ export function ImportView() {
                           <td className="px-4 py-2 max-w-[180px]" style={{ color: "hsl(var(--ll-text-primary))" }}>
                             <span className="block truncate">{row.description}</span>
                             {isDup && (
-                              <span className="ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-semibold bg-yellow-500/15 text-yellow-500">
+                              <span className="ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-semibold bg-[hsl(var(--ll-warning)/0.15)] text-[hsl(var(--ll-warning))]">
                                 Duplicate?
                               </span>
                             )}
                             {recurringSuggestions.has(i) && (
                               <span className="inline-flex items-center gap-1 mt-0.5">
-                                <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-teal-500/10 text-teal-400">
+                                <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-[hsl(var(--ll-accent)/0.1)] text-[hsl(var(--ll-accent))]">
                                   ↻ {recurringSuggestions.get(i)!.recurrence}
                                 </span>
                                 <button
@@ -780,8 +784,8 @@ export function ImportView() {
                                   onClick={() => setRecurringOverrides(prev => new Map(prev).set(i, !(prev.get(i) ?? false)))}
                                   className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
                                     recurringOverrides.get(i)
-                                      ? "bg-teal-500/20 text-teal-300"
-                                      : "bg-teal-500/5 text-teal-600 line-through"
+                                      ? "bg-[hsl(var(--ll-accent)/0.2)] text-[hsl(var(--ll-accent))]"
+                                      : "bg-[hsl(var(--ll-accent)/0.05)] text-[hsl(var(--ll-text-muted))] line-through"
                                   }`}
                                   title={recurringOverrides.get(i) ? "Click to dismiss recurring" : "Click to accept recurring"}
                                 >
@@ -829,7 +833,7 @@ export function ImportView() {
             <p className="text-xs px-1" style={{ color: "hsl(var(--ll-text-muted))" }}>
               <span style={{ color: "hsl(var(--ll-income))" }}>{newCount} new</span>
               {dupCount > 0 && (
-                <>, <span className="text-yellow-500">{dupCount} possible duplicate{dupCount !== 1 ? "s" : ""} (unchecked)</span></>
+                <>, <span style={{ color: "hsl(var(--ll-warning))" }}>{dupCount} possible duplicate{dupCount !== 1 ? "s" : ""} (unchecked)</span></>
               )}
               {" · "}{checkedCount} selected for import
             </p>
@@ -859,6 +863,22 @@ export function ImportView() {
       )}
 
       {/* ── Step 3: Done ── */}
+      {step === 3 && !importResult && (
+        <div className="ll-card p-8">
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: "hsl(var(--ll-expense) / 0.12)" }}>
+              <AlertCircle className="h-7 w-7" style={{ color: "hsl(var(--ll-expense))" }} />
+            </div>
+            <div>
+              <p className="text-base font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>Import failed</p>
+              <p className="mt-1 text-sm" style={{ color: "hsl(var(--ll-text-secondary))" }}>Something went wrong during import. Please try again.</p>
+            </div>
+            <button onClick={reset} className="rounded-lg px-6 py-2 text-sm font-medium text-white transition-colors" style={{ background: "hsl(var(--ll-accent))" }}>
+              Try again
+            </button>
+          </div>
+        </div>
+      )}
       {step === 3 && importResult && (
         <div className="ll-card p-8">
           <div className="flex flex-col items-center gap-4 text-center">
