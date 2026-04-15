@@ -2,14 +2,14 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, ArrowRightLeft, Wallet, Target, Settings, Tag } from "lucide-react";
+import { LayoutDashboard, ArrowRightLeft, Wallet, Upload, Target, Settings } from "lucide-react";
 
 const NAV = [
   { href: "/",             label: "Home",     icon: LayoutDashboard },
   { href: "/transactions", label: "Txns",     icon: ArrowRightLeft },
-  { href: "/accounts",     label: "Accounts",    icon: Wallet },
-  { href: "/categories",   label: "Categories", icon: Tag },
-  { href: "/goals",        label: "Goals",      icon: Target },
+  { href: "/accounts",     label: "Accounts", icon: Wallet },
+  { href: "/import",       label: "Import",   icon: Upload },
+  { href: "/goals",        label: "Goals",    icon: Target },
   { href: "/settings",     label: "Settings", icon: Settings },
 ];
 
