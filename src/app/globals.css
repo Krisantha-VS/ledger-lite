@@ -95,6 +95,43 @@
   --v2-accent: 239 84% 67%;
 }
 
+/* ─── Landing Page Tokens ────────────────────────────────
+   Separate from dashboard tokens so the landing adapts to
+   light / dark / system independently.
+   ─────────────────────────────────────────────────────── */
+
+:root {
+  --land-bg:         #f5f6fa;
+  --land-surface:    #ffffff;
+  --land-card:       #eef0f7;
+  --land-text:       #0f1117;
+  --land-muted:      #5f6370;
+  --land-dim:        #9ca3af;
+  --land-border:     rgba(0, 0, 0, 0.07);
+  --land-rule:       rgba(0, 0, 0, 0.06);
+  --land-nav-bg:     rgba(245, 246, 250, 0.88);
+  --land-indigo-fg:  #4f46e5;
+  --land-green-fg:   #16a34a;
+  --land-row-alt:    rgba(0, 0, 0, 0.025);
+  --land-shadow:     0 24px 60px rgba(0, 0, 0, 0.18);
+}
+
+.dark {
+  --land-bg:         #0a0a0a;
+  --land-surface:    #111111;
+  --land-card:       #131313;
+  --land-text:       #ffffff;
+  --land-muted:      #71717a;
+  --land-dim:        #4b4b5a;
+  --land-border:     rgba(255, 255, 255, 0.06);
+  --land-rule:       rgba(255, 255, 255, 0.07);
+  --land-nav-bg:     rgba(10, 10, 10, 0.88);
+  --land-indigo-fg:  #818cf8;
+  --land-green-fg:   #4ade80;
+  --land-row-alt:    rgba(255, 255, 255, 0.015);
+  --land-shadow:     0 24px 60px rgba(0, 0, 0, 0.6);
+}
+
 /* ─── V2 Utilities ─── */
 .v2-card {
   background: hsl(var(--v2-surface));

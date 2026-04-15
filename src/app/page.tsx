@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 
 export default function LandingPage() {
   return (
-    <div style={{ background: "#0A0A0A", minHeight: "100vh" }} className="text-white">
+    <div style={{ background: "var(--land-bg)", minHeight: "100vh", color: "var(--land-text)" }}>
       <LandingNav />
       <Hero />
       <Features />
