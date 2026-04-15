@@ -5,18 +5,25 @@ import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
 
 const LIGHT = [
-  { src: "/screenshots/light-dashboard.png", label: "Dashboard",  desc: "KPIs, cash flow & recent transactions" },
-  { src: "/screenshots/light-goals.png",     label: "Goals",      desc: "Track savings targets with progress" },
-  { src: "/screenshots/light-settings.png",  label: "Settings",   desc: "Currency, locale & theme preferences" },
+  { src: "/screenshots/light-dashboard.png",    label: "Dashboard",    desc: "KPIs, cash flow & projections" },
+  { src: "/screenshots/light-transactions.png", label: "Transactions", desc: "Full transaction history & search" },
+  { src: "/screenshots/light-goals.png",        label: "Goals",        desc: "Savings targets with progress" },
+  { src: "/screenshots/light-accounts.png",     label: "Accounts",     desc: "All accounts with balances" },
+  { src: "/screenshots/light-settings.png",     label: "Settings",     desc: "Currency, locale & preferences" },
 ];
 
 const DARK = [
-  { src: "/screenshots/dark-dashboard.png",  label: "Dashboard",   desc: "KPIs, cash flow & recent transactions" },
-  { src: "/screenshots/dark-categories.png", label: "Categories",  desc: "Income & expense categories organised" },
-  { src: "/screenshots/dark-goals.png",      label: "Goals",       desc: "Track savings targets with progress" },
+  { src: "/screenshots/dark-dashboard.png",    label: "Dashboard",    desc: "KPIs, cash flow & projections" },
+  { src: "/screenshots/dark-transactions.png", label: "Transactions", desc: "Full transaction history & search" },
+  { src: "/screenshots/dark-categories.png",   label: "Categories",   desc: "Income & expense categories" },
+  { src: "/screenshots/dark-goals.png",        label: "Goals",        desc: "Savings targets with progress" },
+  { src: "/screenshots/dark-accounts.png",     label: "Accounts",     desc: "All accounts with balances" },
 ];
 
-const ROTATIONS = ["-4deg", "0deg", "4deg"];
+// 5-phone fan: sizes + rotations peak at centre
+const SIZES     = [144, 158, 176, 158, 144];
+const ROTATIONS = ["-6deg", "-3deg", "0deg", "3deg", "6deg"];
+const Y_OFFSETS = [24, 12, 0, 12, 24]; // raise centre phone
 
 export function Screenshots() {
   const [mode, setMode] = useState<"light" | "dark">("light");
@@ -41,7 +48,7 @@ export function Screenshots() {
             </h2>
           </div>
 
-          {/* Light / Dark toggle */}
+          {/* Mode toggle */}
           <div
             className="flex self-start items-center gap-1 rounded-lg p-1 lg:self-auto"
             style={{ background: "var(--land-card)", border: "1px solid var(--land-border)" }}
@@ -53,7 +60,7 @@ export function Screenshots() {
                 className="flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold capitalize transition-all"
                 style={{
                   background: mode === m ? "hsl(var(--ll-accent))" : "transparent",
-                  color: mode === m ? "#ffffff" : "var(--land-muted)",
+                  color:      mode === m ? "#ffffff" : "var(--land-muted)",
                 }}
               >
                 {m}
@@ -62,26 +69,26 @@ export function Screenshots() {
           </div>
         </div>
 
-        {/* Screenshot fan */}
-        <div className="relative flex items-end justify-center gap-3 lg:gap-6" style={{ minHeight: "420px" }}>
+        {/* ── 5-phone fan (desktop) ── */}
+        <div className="hidden lg:flex items-end justify-center gap-2" style={{ minHeight: "460px" }}>
           <AnimatePresence mode="wait">
             {screens.map((screen, i) => (
               <motion.div
                 key={mode + screen.src}
-                initial={{ opacity: 0, y: 28, scale: 0.95 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, y: -12, scale: 0.97 }}
-                transition={{ duration: 0.35, delay: i * 0.07 }}
-                className="flex flex-col items-center gap-3"
+                initial={{ opacity: 0, y: 32, scale: 0.93 }}
+                animate={{ opacity: 1, y: Y_OFFSETS[i], scale: 1 }}
+                exit={{ opacity: 0, y: -10, scale: 0.96 }}
+                transition={{ duration: 0.38, delay: i * 0.06 }}
+                className="flex flex-col items-center gap-3 shrink-0"
                 style={{ transform: `rotate(${ROTATIONS[i]})` }}
               >
                 <div
                   className="relative overflow-hidden"
                   style={{
-                    borderRadius: "22px",
-                    width: i === 1 ? "190px" : "164px",
-                    boxShadow: "var(--land-shadow)",
+                    borderRadius: "20px",
+                    width: `${SIZES[i]}px`,
                     border: "1px solid var(--land-border)",
+                    boxShadow: "var(--land-shadow)",
                   }}
                 >
                   <Image
@@ -90,26 +97,65 @@ export function Screenshots() {
                     width={375}
                     height={812}
                     style={{ width: "100%", height: "auto", display: "block" }}
-                    priority={i === 0}
+                    priority={i <= 1}
                   />
                 </div>
-                <div className="text-center" style={{ transform: `rotate(calc(-1 * ${ROTATIONS[i]}))` }}>
-                  <div className="text-xs font-semibold" style={{ color: "var(--land-text)" }}>{screen.label}</div>
-                  <div className="mt-0.5 text-[10px]" style={{ color: "var(--land-dim)", maxWidth: "130px" }}>{screen.desc}</div>
+                <div
+                  className="text-center"
+                  style={{ transform: `rotate(calc(-1 * ${ROTATIONS[i]}))` }}
+                >
+                  <div className="text-[11px] font-semibold" style={{ color: "var(--land-text)" }}>{screen.label}</div>
+                  <div className="mt-0.5 text-[9px]" style={{ color: "var(--land-dim)", maxWidth: "110px" }}>{screen.desc}</div>
                 </div>
               </motion.div>
             ))}
           </AnimatePresence>
         </div>
 
-        {/* Bottom rule */}
-        <div className="mt-14 flex items-center justify-center gap-4">
+        {/* ── Mobile: horizontal scroll strip ── */}
+        <div className="flex lg:hidden gap-4 overflow-x-auto pb-4" style={{ scrollbarWidth: "none" }}>
+          <AnimatePresence mode="wait">
+            {screens.map((screen, i) => (
+              <motion.div
+                key={mode + screen.src + "-mob"}
+                initial={{ opacity: 0, scale: 0.94 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3, delay: i * 0.05 }}
+                className="flex shrink-0 flex-col items-center gap-2"
+              >
+                <div
+                  className="relative overflow-hidden"
+                  style={{
+                    borderRadius: "18px",
+                    width: "140px",
+                    border: "1px solid var(--land-border)",
+                    boxShadow: "var(--land-shadow)",
+                  }}
+                >
+                  <Image
+                    src={screen.src}
+                    alt={screen.label}
+                    width={375}
+                    height={812}
+                    style={{ width: "100%", height: "auto", display: "block" }}
+                  />
+                </div>
+                <div className="text-[10px] font-semibold" style={{ color: "var(--land-text)" }}>{screen.label}</div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+
+        {/* Screen count strip */}
+        <div className="mt-12 flex items-center justify-center gap-4">
           <div className="h-px flex-1" style={{ background: "var(--land-rule)", maxWidth: "180px" }} />
           <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "var(--land-dim)" }}>
             {mode} mode · {screens.length} screens
           </span>
           <div className="h-px flex-1" style={{ background: "var(--land-rule)", maxWidth: "180px" }} />
         </div>
+
       </div>
     </section>
   );
