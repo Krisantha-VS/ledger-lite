@@ -16,6 +16,7 @@ const LIGHT = [
 const DARK = [
   { src: "/screenshots/dark-dashboard.png",    label: "Dashboard",    desc: "KPIs, cash flow & projections" },
   { src: "/screenshots/dark-transactions.png", label: "Transactions", desc: "Full transaction history & search" },
+  { src: "/screenshots/dark-import.png",       label: "AI Import",    desc: "Drop any bank file — parsed in 0.3s" },
   { src: "/screenshots/dark-categories.png",   label: "Categories",   desc: "Income & expense categories" },
   { src: "/screenshots/dark-goals.png",        label: "Goals",        desc: "Savings targets with progress" },
   { src: "/screenshots/dark-accounts.png",     label: "Accounts",     desc: "All accounts with balances" },
