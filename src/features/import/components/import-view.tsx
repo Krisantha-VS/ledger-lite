@@ -916,10 +916,12 @@ export function ImportView() {
                           <div className="mt-1 flex items-center gap-2 text-[10px]" style={{ color: "hsl(var(--ll-text-muted))" }}>
                             <Calendar className="h-3 w-3" />
                             <span>{row.date}</span>
-                            {row.categoryName && (
+                            {(row.categoryName || mode === "ai") && (
                               <>
                                 <span>•</span>
-                                <span className="truncate">{row.categoryName}</span>
+                                <span className="truncate font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
+                                  {row.categoryName ?? "—"}
+                                </span>
                               </>
                             )}
                           </div>
