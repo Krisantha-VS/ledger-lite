@@ -1,11 +1,16 @@
 import { ok, fail, handleError, getUserId } from "@/lib/api";
 import { parseDocument } from "@/lib/ai/parse-document";
+import { canUseAI } from "@/lib/subscriptions";
 
 export const maxDuration = 60; // allow up to 60s for LLM parsing
 
 export async function POST(req: Request) {
   try {
-    await getUserId(req); // auth check
+    const userId = await getUserId(req);
+
+    if (!(await canUseAI(userId))) {
+      return fail("AI Import is a premium feature. Upgrade to Lite or Pro to use AI statement parsing.", 403);
+    }
 
     const hasAI = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.DEEPSEEK_API_KEY;
     if (!hasAI) return fail("AI parsing is not configured", 503);

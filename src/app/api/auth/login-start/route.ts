@@ -8,24 +8,36 @@ const APP_URL   = (process.env.NEXT_PUBLIC_APP_URL   ?? 'http://localhost:3000')
 function generateVerifier() { return crypto.randomBytes(40).toString('base64url'); }
 function deriveChallenge(v: string) { return crypto.createHash('sha256').update(v).digest('base64url'); }
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
+  const { searchParams } = req.nextUrl;
+  const plan     = searchParams.get("plan");
+  const billing  = searchParams.get("billing");
+  const founding = searchParams.get("founding");
+
   const verifier    = generateVerifier();
   const challenge   = deriveChallenge(verifier);
-  const state       = crypto.randomBytes(16).toString('hex');
+  const state       = crypto.randomBytes(16).toString("hex");
   const redirectUri = `${APP_URL}/api/auth/callback`;
 
   const url = new URL(`${AUTH_URL}/oauth/authorize`);
-  url.searchParams.set('response_type',         'code');
-  url.searchParams.set('client_id',             CLIENT_ID);
-  url.searchParams.set('redirect_uri',          redirectUri);
-  url.searchParams.set('code_challenge',        challenge);
-  url.searchParams.set('code_challenge_method', 'S256');
-  url.searchParams.set('state',                 state);
+  url.searchParams.set("response_type",         "code");
+  url.searchParams.set("client_id",             CLIENT_ID);
+  url.searchParams.set("redirect_uri",          redirectUri);
+  url.searchParams.set("code_challenge",        challenge);
+  url.searchParams.set("code_challenge_method", "S256");
+  url.searchParams.set("state",                 state);
 
   const res = NextResponse.redirect(url.toString());
-  const isProduction = process.env.NODE_ENV === 'production';
-  const cookieBase = `Path=/; HttpOnly; SameSite=Lax; Max-Age=300${isProduction ? '; Secure' : ''}`;
-  res.headers.append('Set-Cookie', `ll_oauth_verifier=${verifier}; ${cookieBase}`);
-  res.headers.append('Set-Cookie', `ll_oauth_state=${state}; ${cookieBase}`);
+  const isProduction = process.env.NODE_ENV === "production";
+  const cookieBase = `Path=/; HttpOnly; SameSite=Lax; Max-Age=300${isProduction ? "; Secure" : ""}`;
+  
+  res.headers.append("Set-Cookie", `ll_oauth_verifier=${verifier}; ${cookieBase}`);
+  res.headers.append("Set-Cookie", `ll_oauth_state=${state}; ${cookieBase}`);
+
+  if (plan) {
+    const checkoutData = JSON.stringify({ plan, billing, founding: founding === "true" });
+    res.headers.append("Set-Cookie", `ll_pending_checkout=${encodeURIComponent(checkoutData)}; ${cookieBase}`);
+  }
+
   return res;
 }

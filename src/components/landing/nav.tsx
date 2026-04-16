@@ -40,17 +40,24 @@ export function LandingNav() {
           <nav className="hidden items-center gap-6 md:flex">
             <a
               href="#features"
-              className="text-sm transition-colors"
+              className="text-sm transition-colors hover:opacity-80"
               style={{ color: "var(--land-muted)" }}
             >
               Features
             </a>
             <a
               href="#import"
-              className="text-sm transition-colors"
+              className="text-sm transition-colors hover:opacity-80"
               style={{ color: "var(--land-muted)" }}
             >
               AI Import
+            </a>
+            <a
+              href="#pricing"
+              className="text-sm transition-colors hover:opacity-80"
+              style={{ color: "var(--land-muted)" }}
+            >
+              Pricing
             </a>
           </nav>
 

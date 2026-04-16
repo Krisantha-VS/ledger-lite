@@ -555,11 +555,22 @@ export function ImportView() {
             <input ref={fileRef} type="file" accept=".csv,.pdf,.xlsx,.xls,.ofx,.qfx,.txt" className="hidden" onChange={onFileChange} />
           </div>
 
-          <div className="mt-4 flex items-center gap-2 rounded-lg px-3 py-2.5" style={{ background: "hsl(var(--ll-accent) / 0.06)" }}>
-            <Sparkles className="h-3.5 w-3.5 flex-shrink-0" style={{ color: "hsl(var(--ll-accent))" }} />
-            <p className="text-xs" style={{ color: "hsl(var(--ll-text-secondary))" }}>
-              All formats are parsed by AI automatically. CSV falls back to column detection if AI is unavailable.
-            </p>
+          <div className="mt-4 flex items-center justify-between gap-2 px-1">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-3.5 w-3.5 flex-shrink-0" style={{ color: "hsl(var(--ll-accent))" }} />
+              <p className="text-xs" style={{ color: "hsl(var(--ll-text-secondary))" }}>
+                AI parses all formats automatically. CSV falls back to manual if needed.
+              </p>
+            </div>
+            <a 
+              href="https://ledgerlite.com/help/exports" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-[10px] font-medium underline opacity-60 hover:opacity-100" 
+              style={{ color: "hsl(var(--ll-text-muted))" }}
+            >
+              How to export?
+            </a>
           </div>
         </div>
       )}

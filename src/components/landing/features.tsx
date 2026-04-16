@@ -3,10 +3,27 @@
 import { motion } from "framer-motion";
 
 const FEATURES = [
-  { num: "01", name: "AI Import",      desc: "Drag any bank statement — PDF, CSV, XLSX, OFX. Parsed in under a second, categorised automatically. No template required.", id: "import" },
-  { num: "02", name: "Budgets",        desc: "Set spending limits per category. See exactly where you are overspending before the month ends." },
-  { num: "03", name: "Subscriptions",  desc: "Every recurring charge surfaced in one view. Cancel the ones you forgot you had." },
-  { num: "04", name: "Analytics",      desc: "Income, expenses, and trends — charts that show signal, not noise. No dashboard bloat." },
+  {
+    num: "01",
+    name: "Any Bank, Anywhere",
+    desc: "Works with every bank on earth. Upload a PDF, CSV, or XLSX statement — no Plaid connection, no credentials, no country restrictions. If your bank exports a file, LedgerLite reads it.",
+    id: "import",
+  },
+  {
+    num: "02",
+    name: "AI Categorization",
+    desc: "Every transaction is categorized the moment you upload. Merchants, subscriptions, transfers — the AI handles it automatically. No rules to write, no templates to configure.",
+  },
+  {
+    num: "03",
+    name: "Budgets & Goals",
+    desc: "Set monthly spending limits per category and track savings targets with progress bars. See where you are before the month ends, not after.",
+  },
+  {
+    num: "04",
+    name: "Zero Sync Required",
+    desc: "No bank connection to break. No re-authentication prompts. No third-party seeing your credentials. Drop a file, see your finances — that's the entire workflow.",
+  },
 ];
 
 export function Features() {
@@ -15,14 +32,14 @@ export function Features() {
       <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
         <div className="mb-4 flex items-center gap-3">
           <span className="font-mono text-[11px] font-bold" style={{ color: "hsl(var(--ll-accent))" }}>02</span>
-          <span className="font-mono text-[11px]" style={{ color: "var(--land-muted)" }}>— WHAT IT DOES</span>
+          <span className="font-mono text-[11px]" style={{ color: "var(--land-muted)" }}>— WHY IT'S DIFFERENT</span>
         </div>
         <div className="mb-10 h-px w-72" style={{ background: "var(--land-rule)" }} />
 
         <h2 className="mb-16 text-3xl font-bold leading-tight tracking-tight lg:text-5xl" style={{ color: "var(--land-text)" }}>
-          Every tool you need.
+          <span style={{ color: "var(--land-text)" }}>Works with every bank on earth.</span>
           <br />
-          Nothing you don&apos;t.
+          <span style={{ color: "var(--land-muted)" }}>No sync. No credentials. No limits.</span>
         </h2>
 
         <div style={{ borderTop: "1px solid var(--land-border)" }}>

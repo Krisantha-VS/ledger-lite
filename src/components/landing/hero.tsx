@@ -31,9 +31,9 @@ export function Hero() {
               marginLeft: "-22px",
             }}
           >
-            Your finances,
+            Finally, a finance app
             <br />
-            cleared.
+            that works with your actual bank.
           </motion.h1>
 
           <motion.p
@@ -43,9 +43,11 @@ export function Hero() {
             className="mb-8 text-base leading-relaxed lg:text-lg"
             style={{ color: "var(--land-muted)" }}
           >
-            Drop a PDF. Get a spreadsheet.
+            Upload any PDF, CSV, or Excel statement.
             <br />
-            No manual entry. No confusion.
+            LedgerLite&apos;s AI categorizes every transaction automatically.
+            <br />
+            No credentials. No country restrictions. Just clarity.
           </motion.p>
 
           <motion.div
@@ -59,10 +61,10 @@ export function Hero() {
               className="inline-flex items-center gap-2 rounded px-5 py-2.5 text-sm font-semibold text-white transition-opacity hover:opacity-85"
               style={{ background: "hsl(var(--ll-accent))" }}
             >
-              Import a statement <span className="opacity-70">→</span>
+              Try free — any bank, anywhere <span className="opacity-70">→</span>
             </Link>
             <span className="text-xs" style={{ color: "var(--land-dim)" }}>
-              Free to start · No card required
+              Works with Wise · N26 · Chase · HDFC · and any bank worldwide
             </span>
           </motion.div>
         </div>

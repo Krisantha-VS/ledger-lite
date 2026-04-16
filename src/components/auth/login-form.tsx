@@ -1,12 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Lock } from "lucide-react";
 import { motion } from "framer-motion";
 import { BrandMark } from "@/components/ui/brand-mark";
 
 export function LoginForm() {
   const [hovered, setHovered] = useState(false);
+  const [href, setHref] = useState("/api/auth/login-start");
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      setHref(`/api/auth/login-start${window.location.search}`);
+    }
+  }, []);
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4">
@@ -64,7 +71,7 @@ export function LoginForm() {
 
           {/* Button — shimmer on hover */}
           <motion.a
-            href="/api/auth/login-start"
+            href={href}
             className="relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-lg py-2.5 text-sm font-medium text-white active:scale-[0.98]"
             style={{ background: "hsl(var(--ll-accent))" }}
             initial={{ opacity: 0, y: 6 }}
