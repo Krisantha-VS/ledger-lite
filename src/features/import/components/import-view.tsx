@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, DragEvent, ChangeEvent } from "react";
-import { Upload, FileText, ChevronRight, Check, AlertCircle, Sparkles, AlertTriangle, Building2, Calendar, ArrowLeftRight, Pencil } from "lucide-react";
+import { Upload, FileText, ChevronLeft, ChevronRight, Check, AlertCircle, Sparkles, AlertTriangle, Building2, Calendar, ArrowLeftRight, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { authFetch } from "@/shared/lib/auth-client";
 import { useAccounts } from "@/features/accounts/hooks/useAccounts";
@@ -220,6 +220,10 @@ export function ImportView() {
   const [recurringSuggestions, setRecurringSuggestions] = useState<Map<number, { recurrence: "weekly" | "monthly"; confidence: number }>>(new Map());
   const [recurringOverrides, setRecurringOverrides]     = useState<Map<number, boolean>>(new Map());
 
+  /** Import preview table: 0 = show all rows on one page */
+  const [previewPage, setPreviewPage]         = useState(1);
+  const [previewPageSize, setPreviewPageSize] = useState(25);
+
   // Shared
   const [accountId,  setAccountId]  = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -382,9 +386,24 @@ export function ImportView() {
     credit: -1, debit: -1, mintCategory: -1, mintDates: false,
   };
 
-  const csvPreviewRows = mode === "csv" ? buildRows(allRows.slice(0, 10), effectiveColMap).valid : [];
+  const csvPreviewRows = mode === "csv" ? buildRows(allRows, effectiveColMap).valid : [];
   const aiPreviewRows  = mode === "ai"  ? (rowsWithDups.length > 0 ? rowsWithDups : aiRows) : [];
-  const previewRows    = mode === "ai"  ? aiPreviewRows.slice(0, 10) : csvPreviewRows;
+  const previewRows    = mode === "ai"  ? aiPreviewRows : csvPreviewRows;
+
+  const previewShowAll   = previewPageSize === 0;
+  const previewSliceSize = previewShowAll ? previewRows.length : previewPageSize;
+  const previewTotalPages = Math.max(1, Math.ceil(previewRows.length / Math.max(previewSliceSize, 1)));
+  const previewSafePage   = Math.min(previewPage, previewTotalPages);
+  const previewStartIdx   = (previewSafePage - 1) * previewSliceSize;
+  const previewPageRows   = previewRows.slice(previewStartIdx, previewStartIdx + previewSliceSize);
+
+  useEffect(() => {
+    setPreviewPage(1);
+  }, [fileName, previewRows.length]);
+
+  useEffect(() => {
+    setPreviewPage(p => Math.min(p, previewTotalPages));
+  }, [previewTotalPages]);
 
   // Summary counts for AI mode
   const dupCount      = rowsWithDups.filter(r => r.isDuplicate).length;
@@ -732,10 +751,24 @@ export function ImportView() {
             <div className="ll-card overflow-hidden p-0">
               <div className="px-5 pt-4 pb-3" style={{ borderBottom: "1px solid hsl(var(--ll-border))" }}>
                 <h2 className="text-sm font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>
-                  Preview (first {Math.min(10, previewRows.length)} rows)
+                  Preview ({previewRows.length} row{previewRows.length !== 1 ? "s" : ""})
                 </h2>
+                {!previewShowAll && previewRows.length > 0 && (
+                  <p className="mt-1 text-[11px]" style={{ color: "hsl(var(--ll-text-muted))" }}>
+                    Showing{" "}
+                    {previewPageRows.length === 0 ? 0 : previewStartIdx + 1}
+                    –
+                    {previewStartIdx + previewPageRows.length} of {previewRows.length}
+                  </p>
+                )}
               </div>
-              <div className="overflow-x-auto">
+              <div
+                className={
+                  previewShowAll && previewRows.length > 40
+                    ? "max-h-[min(70vh,720px)] overflow-y-auto overflow-x-auto"
+                    : "overflow-x-auto"
+                }
+              >
                 <table className="w-full text-xs">
                   <thead>
                     <tr style={{ borderBottom: "1px solid hsl(var(--ll-border))" }}>
@@ -750,14 +783,15 @@ export function ImportView() {
                     </tr>
                   </thead>
                   <tbody>
-                    {previewRows.map((row, i) => {
+                    {previewPageRows.map((row, i) => {
+                      const globalIdx  = previewStartIdx + i;
                       const rowWithDup = row as RowWithDup;
                       const lowConf    = (row.confidence ?? 1) < 0.7;
                       const isDup      = rowWithDup.isDuplicate === true;
-                      const isChecked  = checkedRows.has(i);
+                      const isChecked  = checkedRows.has(globalIdx);
                       return (
-                        <tr key={i} style={{
-                          borderBottom: i < previewRows.length - 1 ? "1px solid hsl(var(--ll-border) / 0.5)" : undefined,
+                        <tr key={globalIdx} style={{
+                          borderBottom: i < previewPageRows.length - 1 ? "1px solid hsl(var(--ll-border) / 0.5)" : undefined,
                           background: isDup
                             ? "hsl(var(--ll-warning) / 0.05)"
                             : lowConf ? "hsl(var(--ll-warning) / 0.04)" : undefined,
@@ -770,7 +804,7 @@ export function ImportView() {
                                 checked={isChecked}
                                 onChange={() => {
                                   const next = new Set(checkedRows);
-                                  if (isChecked) next.delete(i); else next.add(i);
+                                  if (isChecked) next.delete(globalIdx); else next.add(globalIdx);
                                   setCheckedRows(next);
                                 }}
                                 className="h-3.5 w-3.5 cursor-pointer"
@@ -785,22 +819,22 @@ export function ImportView() {
                                 Duplicate?
                               </span>
                             )}
-                            {recurringSuggestions.has(i) && (
+                            {recurringSuggestions.has(globalIdx) && (
                               <span className="inline-flex items-center gap-1 mt-0.5">
                                 <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-[hsl(var(--ll-accent)/0.1)] text-[hsl(var(--ll-accent))]">
-                                  ↻ {recurringSuggestions.get(i)!.recurrence}
+                                  ↻ {recurringSuggestions.get(globalIdx)!.recurrence}
                                 </span>
                                 <button
                                   type="button"
-                                  onClick={() => setRecurringOverrides(prev => new Map(prev).set(i, !(prev.get(i) ?? false)))}
+                                  onClick={() => setRecurringOverrides(prev => new Map(prev).set(globalIdx, !(prev.get(globalIdx) ?? false)))}
                                   className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
-                                    recurringOverrides.get(i)
+                                    recurringOverrides.get(globalIdx)
                                       ? "bg-[hsl(var(--ll-accent)/0.2)] text-[hsl(var(--ll-accent))]"
                                       : "bg-[hsl(var(--ll-accent)/0.05)] text-[hsl(var(--ll-text-muted))] line-through"
                                   }`}
-                                  title={recurringOverrides.get(i) ? "Click to dismiss recurring" : "Click to accept recurring"}
+                                  title={recurringOverrides.get(globalIdx) ? "Click to dismiss recurring" : "Click to accept recurring"}
                                 >
-                                  {recurringOverrides.get(i) ? "recurring" : "dismiss"}
+                                  {recurringOverrides.get(globalIdx) ? "recurring" : "dismiss"}
                                 </button>
                               </span>
                             )}
@@ -824,6 +858,53 @@ export function ImportView() {
                     })}
                   </tbody>
                 </table>
+              </div>
+              <div
+                className="flex flex-col gap-2 border-t px-5 py-3 sm:flex-row sm:items-center sm:justify-between"
+                style={{ borderColor: "hsl(var(--ll-border))" }}
+              >
+                <label className="flex items-center gap-2 text-[11px]" style={{ color: "hsl(var(--ll-text-secondary))" }}>
+                  <span style={{ color: "hsl(var(--ll-text-muted))" }}>Rows per page</span>
+                  <select
+                    className="ll-input h-7 py-0 text-xs"
+                    value={previewPageSize === 0 ? "all" : String(previewPageSize)}
+                    onChange={e => {
+                      const v = e.target.value;
+                      setPreviewPageSize(v === "all" ? 0 : parseInt(v, 10));
+                      setPreviewPage(1);
+                    }}
+                  >
+                    {[10, 25, 50, 100].map(n => (
+                      <option key={n} value={String(n)}>{n}</option>
+                    ))}
+                    <option value="all">All</option>
+                  </select>
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={previewSafePage <= 1}
+                    onClick={() => setPreviewPage(Math.max(1, previewSafePage - 1))}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-[hsl(var(--ll-text-secondary))] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                    style={{ borderColor: "hsl(var(--ll-border))", background: "hsl(var(--ll-bg-elevated))" }}
+                    aria-label="Previous page"
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </button>
+                  <span className="min-w-[7rem] text-center text-[11px] tabular-nums" style={{ color: "hsl(var(--ll-text-muted))" }}>
+                    Page {previewSafePage} of {previewTotalPages}
+                  </span>
+                  <button
+                    type="button"
+                    disabled={previewSafePage >= previewTotalPages}
+                    onClick={() => setPreviewPage(Math.min(previewTotalPages, previewSafePage + 1))}
+                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border text-[hsl(var(--ll-text-secondary))] transition-colors disabled:cursor-not-allowed disabled:opacity-40"
+                    style={{ borderColor: "hsl(var(--ll-border))", background: "hsl(var(--ll-bg-elevated))" }}
+                    aria-label="Next page"
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </button>
+                </div>
               </div>
             </div>
           )}
