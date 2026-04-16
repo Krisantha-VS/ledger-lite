@@ -6,10 +6,11 @@ import {
   Wallet, LayoutDashboard, ArrowUpDown, PiggyBank,
   Target, BarChart3, ChevronRight, Settings, Tag, Upload, Repeat2,
 } from "lucide-react";
+import { BrandMark } from "@/components/ui/brand-mark";
 import { cn } from "@/shared/lib/utils";
 
 const NAV = [
-  { href: "/",             label: "Dashboard",    icon: LayoutDashboard },
+  { href: "/dashboard",    label: "Dashboard",    icon: LayoutDashboard },
   { href: "/transactions", label: "Transactions", icon: ArrowUpDown },
   { href: "/import",       label: "Import",       icon: Upload },
   { href: "/accounts",     label: "Accounts",     icon: Wallet },
@@ -36,7 +37,7 @@ export function Sidebar() {
           className="flex h-7 w-7 items-center justify-center rounded-lg"
           style={{ background: "hsl(var(--ll-accent) / 0.15)" }}
         >
-          <Wallet className="h-3.5 w-3.5" style={{ color: "hsl(var(--ll-accent))" }} />
+          <BrandMark className="h-3.5 w-3.5" style={{ color: "hsl(var(--ll-accent))" }} />
         </div>
         <span className="text-sm font-semibold tracking-tight" style={{ color: "hsl(var(--ll-text-primary))" }}>
           LedgerLite
@@ -46,7 +47,7 @@ export function Sidebar() {
       {/* Nav */}
       <nav className="flex-1 space-y-0.5 p-3">
         {NAV.map(({ href, label, icon: Icon }) => {
-          const active = path === href || (href !== "/" && path.startsWith(href));
+          const active = path === href || (href !== "/dashboard" && path.startsWith(href));
           return (
             <Link
               key={href}

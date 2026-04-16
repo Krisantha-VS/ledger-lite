@@ -5,7 +5,7 @@ import { usePathname } from "next/navigation";
 import { LayoutDashboard, ArrowRightLeft, Wallet, Upload, Target, Settings } from "lucide-react";
 
 const NAV = [
-  { href: "/",             label: "Home",     icon: LayoutDashboard },
+  { href: "/dashboard",    label: "Home",     icon: LayoutDashboard },
   { href: "/transactions", label: "Txns",     icon: ArrowRightLeft },
   { href: "/accounts",     label: "Accounts", icon: Wallet },
   { href: "/import",       label: "Import",   icon: Upload },

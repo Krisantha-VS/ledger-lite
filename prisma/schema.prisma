@@ -139,6 +139,34 @@ model AuditLog {
   @@index([userId, createdAt])
 }
 
+// ─── Subscription ──────────────────────────────────────────
+
+model Subscription {
+  id               Int           @id @default(autoincrement())
+  userId           String        @unique @db.VarChar(36)
+  plan             PlanType      @default(free)
+  status           SubStatus     @default(active)
+  dodoSubscriptionId String?     @unique @db.VarChar(100)
+  currentPeriodEnd DateTime?
+  trialEndsAt      DateTime?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([userId])
+}
+
+enum PlanType {
+  free
+  lite
+  pro
+}
+
+enum SubStatus {
+  active
+  past_due
+  canceled
+}
+
 // ─── User Settings ────────────────────────────────────────
 
 model UserSettings {

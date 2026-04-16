@@ -37,11 +37,14 @@ export async function GET(req: NextRequest) {
   const { data } = await tokenRes.json();
   const { access_token, refresh_token } = data;
 
-  const isProduction = process.env.NODE_ENV === 'production';
-  const secure       = isProduction ? '; Secure' : '';
+  const isProduction = process.env.NODE_ENV === "production";
+  const secure       = isProduction ? "; Secure" : "";
+
+  const checkoutCookie = jar.get("ll_pending_checkout")?.value;
+  const target = checkoutCookie ? `${APP_URL}/dashboard?checkout=1` : `${APP_URL}/dashboard`;
 
   const html = `<!DOCTYPE html><html><head>
-    <meta http-equiv="refresh" content="0;url=${APP_URL}">
+    <meta http-equiv="refresh" content="0;url=${target}">
     <title>Signing in...</title>
   </head><body></body></html>`;
 

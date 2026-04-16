@@ -2,9 +2,9 @@ import OpenAI    from "openai";
 import Anthropic from "@anthropic-ai/sdk";
 import * as XLSX  from "xlsx";
 
-const openai   = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const deepseek = new OpenAI({
+const getOpenAI   = () => new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const getAnthropic = () => new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+const getDeepSeek  = () => new OpenAI({
   apiKey:  process.env.DEEPSEEK_API_KEY,
   baseURL: "https://api.deepseek.com/v1",
 });
@@ -183,7 +183,7 @@ export async function parseCSVWithAI(csvText: string): Promise<ParseResult> {
   // Primary: OpenAI GPT-4o-mini
   if (process.env.OPENAI_API_KEY) {
     try {
-      const res = await openai.chat.completions.create({
+      const res = await getOpenAI().chat.completions.create({
         model:       "gpt-4o-mini",
         temperature: 0,
         messages: [
@@ -201,7 +201,7 @@ export async function parseCSVWithAI(csvText: string): Promise<ParseResult> {
   // Fallback: Anthropic Claude Haiku
   if (process.env.ANTHROPIC_API_KEY) {
     try {
-      const res = await anthropic.messages.create({
+      const res = await getAnthropic().messages.create({
         model:       "claude-haiku-4-5-20251001",
         max_tokens:  4096,
         system:      SYSTEM_PROMPT,
@@ -217,16 +217,20 @@ export async function parseCSVWithAI(csvText: string): Promise<ParseResult> {
 
   // Fallback: DeepSeek-V3
   if (process.env.DEEPSEEK_API_KEY) {
-    const res = await deepseek.chat.completions.create({
-      model:       "deepseek-chat",
-      temperature: 0,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user",   content: userMessage },
-      ],
-    });
-    const parsed = parseJSON(res.choices[0]?.message?.content ?? "{}");
-    return { ...parsed, provider: "deepseek", model: "deepseek-chat" };
+    try {
+      const res = await getDeepSeek().chat.completions.create({
+        model:       "deepseek-chat",
+        temperature: 0,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user",   content: userMessage },
+        ],
+      });
+      const parsed = parseJSON(res.choices[0]?.message?.content ?? "{}");
+      return { ...parsed, provider: "deepseek", model: "deepseek-chat" };
+    } catch (err) {
+      console.error("[parse-document] DeepSeek failed:", err instanceof Error ? err.message : err);
+    }
   }
 
   throw new Error("No AI provider configured. Add OPENAI_API_KEY, ANTHROPIC_API_KEY, or DEEPSEEK_API_KEY.");
@@ -243,7 +247,7 @@ export async function parsePDFWithAI(pdfBuffer: Buffer): Promise<ParseResult> {
   const parsed = await pdfParse(pdfBuffer);
   const pdfText = parsed.text?.trim();
 
-  if (!pdfText || pdfText.length < 20) {
+  if (!pdfText || pdfText.replace(/\s+/g, "").length < 20) {
     throw new Error("Could not extract text from this PDF. It may be a scanned image. Please export as CSV from your bank instead.");
   }
 
