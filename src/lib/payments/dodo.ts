@@ -7,7 +7,7 @@ export const DODO_CONFIG = {
   productIdLiteAnnual: process.env.DODO_PRODUCT_LITE_ANNUAL || "",
   productIdProMonthly: process.env.DODO_PRODUCT_PRO_MONTHLY || "",
   productIdProAnnual: process.env.DODO_PRODUCT_PRO_ANNUAL || "",
-  productIdProFounding: process.env.DODO_PRODUCT_PRO_FOUNDING || "", // $9/mo locked for life
+  productIdProFounding: process.env.DODO_PRODUCT_PRO_FOUNDING || "", // $7/mo locked for life (founding offer)
 };
 
 export type DodoPlan = "lite" | "pro";

@@ -185,7 +185,7 @@ export function Pricing() {
             <span className="font-semibold">Founding Member offer</span>
             {" — "}
             First 100 users get Pro locked at{" "}
-            <span className="font-semibold">$9/mo for life.</span>
+            <span className="font-semibold">$7/mo for life.</span>
           </p>
           <Link
             href="/login"
@@ -239,7 +239,7 @@ export function Pricing() {
                   className="text-4xl font-bold tracking-tight"
                   style={{ color: "var(--land-fg)" }}
                 >
-                  {tier.name === "Pro" && annual ? "$9/mo" : tier.price(annual)}
+                  {tier.name === "Pro" && annual ? "$7/mo" : tier.price(annual)}
                 </span>
                 {tier.name === "Pro" && annual && (
                   <span className="text-xs line-through opacity-50 ml-2" style={{ color: "var(--land-muted)" }}>

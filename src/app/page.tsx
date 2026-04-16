@@ -2,11 +2,11 @@ import type { Metadata } from "next";
 import { LandingNav } from "@/components/landing/nav";
 import { Hero } from "@/components/landing/hero";
 import { Features } from "@/components/landing/features";
-import { Screenshots } from "@/components/landing/screenshots";
 import { Pricing } from "@/components/landing/pricing";
 import { Stats } from "@/components/landing/stats";
 import { CTA } from "@/components/landing/cta";
 import { LandingFooter } from "@/components/landing/footer";
+import { ScreenshotsClientOnly } from "../components/landing/screenshots-client-only";
 
 export const metadata: Metadata = {
   title: { absolute: "LedgerLite — Personal finance for every bank, everywhere." },
@@ -20,7 +20,7 @@ export default function LandingPage() {
       <LandingNav />
       <Hero />
       <Features />
-      <Screenshots />
+      <ScreenshotsClientOnly />
       <Pricing />
       <Stats />
       <CTA />
