@@ -953,6 +953,37 @@ const ACCOUNT_TYPE_LABELS: Record<string, string> = {
 };
 const ACCOUNT_TYPE_ORDER = ["checking", "savings", "cash", "credit", "investment"];
 
+/** Non-null type-specific fields from AI meta (credit / savings / investment). */
+function extendedStatementSummaryRows(
+  meta: StatementMeta | null,
+  formatYmd: (d: string | null) => string | null,
+): { label: string; value: string }[] {
+  if (!meta) return [];
+  const cur = meta.currency ? `${meta.currency} ` : "";
+  const money = (n: number | null) =>
+    n == null ? null : `${cur}${n.toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  const out: { label: string; value: string }[] = [];
+  const push = (label: string, v: string | null) => {
+    if (v) out.push({ label, value: v });
+  };
+  push("Credit limit", money(meta.creditLimit));
+  push("Available credit", money(meta.availableCredit));
+  push("Minimum payment", money(meta.minimumPaymentDue));
+  push("Minimum payment by", formatYmd(meta.minimumPaymentDueDate));
+  push("Payment due", formatYmd(meta.paymentDueDate));
+  if (meta.aprAnnualPercent != null) push("APR", `${meta.aprAnnualPercent}%`);
+  push("Purchases & charges (stmt.)", money(meta.totalPurchasesAndCharges));
+  push("Payments & credits (stmt.)", money(meta.totalPaymentsAndCredits));
+  push("Fees (stmt.)", money(meta.totalFeesCharged));
+  push("Interest (stmt.)", money(meta.totalInterestCharged));
+  push("Outstanding balance", money(meta.outstandingBalance));
+  if (meta.isNewAccount === true) push("New account", "Yes");
+  push("Interest earned", money(meta.interestEarnedThisPeriod));
+  if (meta.annualPercentageYield != null) push("APY / AER", `${meta.annualPercentageYield}%`);
+  push("Portfolio value", money(meta.portfolioEndingValue));
+  return out;
+}
+
 function SmartSummaryCard({
   meta, rows, excludeTransfers, onExcludeTransfersChange,
   accounts, accountsLoading, accountId, onAccountSelect, createAccount,
@@ -999,6 +1030,8 @@ function SmartSummaryCard({
     if (!d) return null;
     return new Date(d + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
+
+  const summaryExtras = extendedStatementSummaryRows(meta, formatDate);
 
   const hasAccountInfo = meta?.bankName || meta?.accountNumber;
   const hasPeriod      = meta?.statementFrom || meta?.statementTo;
@@ -1120,6 +1153,27 @@ function SmartSummaryCard({
                   )}
                 </p>
               )}
+            </div>
+          </div>
+        )}
+
+        {summaryExtras.length > 0 && (
+          <div className="flex items-start gap-3 px-5 py-4">
+            <div className="mt-0.5 flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-lg" style={{ background: "hsl(var(--ll-accent)/0.08)" }}>
+              <Sparkles className="h-3.5 w-3.5" style={{ color: "hsl(var(--ll-accent))" }} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
+                Statement summary ({meta?.accountType ?? "account"})
+              </p>
+              <dl className="mt-2 grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2 text-[11px]">
+                {summaryExtras.map(({ label, value }) => (
+                  <div key={label} className="flex justify-between gap-3" style={{ color: "hsl(var(--ll-text-secondary))" }}>
+                    <dt style={{ color: "hsl(var(--ll-text-muted))" }}>{label}</dt>
+                    <dd className="font-medium tabular-nums text-right" style={{ color: "hsl(var(--ll-text-primary))" }}>{value}</dd>
+                  </div>
+                ))}
+              </dl>
             </div>
           </div>
         )}

@@ -33,6 +33,27 @@ export interface StatementMeta {
   totalDebits:              number | null;  // sum of all debits per statement summary
   totalCredits:             number | null;  // sum of all credits per statement summary
   statementTransactionCount: number | null; // total count printed on statement
+
+  /** Credit / revolving — only when statement shows these; else null */
+  creditLimit:               number | null;
+  availableCredit:           number | null;
+  minimumPaymentDue:         number | null;
+  minimumPaymentDueDate:     string | null; // YYYY-MM-DD
+  paymentDueDate:            string | null; // YYYY-MM-DD
+  aprAnnualPercent:          number | null;
+  totalPurchasesAndCharges:  number | null;
+  totalPaymentsAndCredits:   number | null;
+  totalFeesCharged:          number | null;
+  totalInterestCharged:      number | null;
+  outstandingBalance:        number | null; // printed current / revolving total if distinct from closingBalance
+  isNewAccount:              boolean | null; // true only if the statement explicitly indicates a new account
+
+  /** Savings — interest this cycle; null if not a savings statement or not shown */
+  interestEarnedThisPeriod:  number | null;
+  annualPercentageYield:     number | null;
+
+  /** Investment — null if not an investment/brokerage statement or not shown */
+  portfolioEndingValue:      number | null;
 }
 
 export interface ParseResult {
@@ -57,11 +78,29 @@ The object must have exactly this structure:
     "currency": "3-letter ISO code like LKR USD GBP, or null",
     "statementFrom": "YYYY-MM-DD or null",
     "statementTo": "YYYY-MM-DD or null",
-    "openingBalance": <number or null>,
-    "closingBalance": <number or null>,
-    "totalDebits": <total debit/withdrawal sum printed on statement, or null>,
-    "totalCredits": <total credit/deposit sum printed on statement, or null>,
-    "statementTransactionCount": <integer count of transactions printed on statement, or null>
+    "openingBalance": <number or null — previous/closing balance start of period; for credit cards often "previous balance">,
+    "closingBalance": <number or null — end-of-period balance; for credit cards map "new balance", "closing balance", "statement balance" here>,
+    "totalDebits": <number or null — statement-printed total outflows for the period (debits/withdrawals/charges aggregate as printed)>,
+    "totalCredits": <number or null — statement-printed total inflows (credits/deposits/payments aggregate as printed)>,
+    "statementTransactionCount": <integer count of transactions printed on statement, or null>,
+
+    "creditLimit": <number or null — only for credit/revolving; total credit limit if printed>,
+    "availableCredit": <number or null>,
+    "minimumPaymentDue": <number or null>,
+    "minimumPaymentDueDate": "YYYY-MM-DD or null",
+    "paymentDueDate": "YYYY-MM-DD or null — due date for this statement payment if shown>",
+    "aprAnnualPercent": <number or null — e.g. 19.99 for 19.99% APR; null if not stated>,
+    "totalPurchasesAndCharges": <number or null — purchases + card charges/fees excluding interest if the statement shows a separate purchases total>,
+    "totalPaymentsAndCredits": <number or null — payments, refunds, and reversal credits aggregate if printed>,
+    "totalFeesCharged": <number or null>,
+    "totalInterestCharged": <number or null>,
+    "outstandingBalance": <number or null — use when the statement prints a distinct "current balance", "total outstanding", or revolving balance different from closingBalance; else null>,
+    "isNewAccount": <true | false | null — true ONLY if the statement explicitly indicates a new account (e.g. "welcome", "new account", first statement); otherwise false or null>,
+
+    "interestEarnedThisPeriod": <number or null — savings/deposit interest for this statement period>,
+    "annualPercentageYield": <number or null — APY/AER as a percentage number e.g. 4.5 for 4.5%>,
+
+    "portfolioEndingValue": <number or null — total portfolio / account value at statement date if investment/brokerage>
   },
   "transactions": [
     {
@@ -90,6 +129,12 @@ Account type detection — set accountType using the first matching rule:
 - "investment" if statement shows units, shares, NAV, portfolio value, dividends, or brokerage entries
 - "checking"   for all other transactional accounts (current accounts, everyday accounts, etc.)
 
+Type-specific meta (always include every key; use null when not applicable or not printed):
+- **credit**: Map printed summary lines into meta: openingBalance = previous balance; closingBalance = new/statement balance. Fill totalPurchasesAndCharges / totalPaymentsAndCredits when the statement shows those subtotals (not guesses). totalDebits/totalCredits should mirror the statement's own "total debits/charges" and "total credits/payments" summary lines when present. If isNewAccount is true, you MUST set creditLimit when the limit appears anywhere on the statement; if the statement says new account but no limit is printed, creditLimit stays null.
+- **checking**: Prefer openingBalance/closingBalance and totalDebits (withdrawals) / totalCredits (deposits) from printed summaries. Leave all credit-* and savings/investment extras null.
+- **savings**: Fill interestEarnedThisPeriod and annualPercentageYield when shown; credit-* null unless it is actually a combined pack.
+- **investment**: Fill portfolioEndingValue when shown; other type-specific fields null unless also printed.
+
 Rules:
 - amount is always positive; use "type" for direction (income = money in, expense = money out)
 - For credit card statements: purchases and fees are "expense"; payments and refunds are "income"
@@ -100,6 +145,7 @@ Rules:
 - do NOT include opening/closing balance rows or statement summary rows as transactions
 - do NOT include reversed/voided transactions (a transaction immediately cancelled by an equal and opposite entry on the same date)
 - include every other transaction row without omission
+- include every meta key shown in the schema above (use null for any value not found or not applicable)
 - all meta fields default to null if not found in the statement`;
 
 // ─── Validate + normalise LLM output ─────────────────────────────────────────
@@ -136,6 +182,14 @@ function normaliseMeta(raw: Record<string, unknown>): StatementMeta {
   const str  = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
   const num  = (v: unknown) => { const n = parseFloat(String(v ?? "")); return isNaN(n) ? null : n; };
   const date = (v: unknown) => { const s = str(v); return s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null; };
+  const bool = (v: unknown): boolean | null => {
+    if (v === true) return true;
+    if (v === false) return false;
+    const s = String(v ?? "").trim().toLowerCase();
+    if (s === "true" || s === "yes" || s === "1") return true;
+    if (s === "false" || s === "no" || s === "0") return false;
+    return null;
+  };
   const acctTypes = ["checking", "savings", "credit", "investment"] as const;
   const rawType = str(raw.accountType)?.toLowerCase();
   return {
@@ -150,6 +204,24 @@ function normaliseMeta(raw: Record<string, unknown>): StatementMeta {
     totalDebits:               num(raw.totalDebits),
     totalCredits:              num(raw.totalCredits),
     statementTransactionCount: (() => { const n = parseInt(String(raw.statementTransactionCount ?? "")); return isNaN(n) ? null : n; })(),
+
+    creditLimit:               num(raw.creditLimit),
+    availableCredit:           num(raw.availableCredit),
+    minimumPaymentDue:         num(raw.minimumPaymentDue),
+    minimumPaymentDueDate:     date(raw.minimumPaymentDueDate),
+    paymentDueDate:            date(raw.paymentDueDate),
+    aprAnnualPercent:          num(raw.aprAnnualPercent),
+    totalPurchasesAndCharges:  num(raw.totalPurchasesAndCharges),
+    totalPaymentsAndCredits:   num(raw.totalPaymentsAndCredits),
+    totalFeesCharged:          num(raw.totalFeesCharged),
+    totalInterestCharged:      num(raw.totalInterestCharged),
+    outstandingBalance:        num(raw.outstandingBalance),
+    isNewAccount:              bool(raw.isNewAccount),
+
+    interestEarnedThisPeriod:  num(raw.interestEarnedThisPeriod),
+    annualPercentageYield:     num(raw.annualPercentageYield),
+
+    portfolioEndingValue:      num(raw.portfolioEndingValue),
   };
 }
 
