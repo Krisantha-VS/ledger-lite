@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, DragEvent, ChangeEvent } from "react";
-import { Upload, FileText, ChevronLeft, ChevronRight, Check, AlertCircle, Sparkles, AlertTriangle, Building2, Calendar, ArrowLeftRight, Pencil } from "lucide-react";
+import { Upload, FileText, ChevronLeft, ChevronRight, Check, AlertCircle, Sparkles, AlertTriangle, Building2, Calendar, ArrowLeftRight, Pencil, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { authFetch } from "@/shared/lib/auth-client";
 import { useAccounts } from "@/features/accounts/hooks/useAccounts";
@@ -513,8 +513,14 @@ export function ImportView() {
 
   const lowConfidenceCount = aiRows.filter(r => (r.confidence ?? 1) < 0.7).length;
 
+  const toggleRow = (idx: number) => {
+    const next = new Set(checkedRows);
+    if (next.has(idx)) next.delete(idx); else next.add(idx);
+    setCheckedRows(next);
+  };
+
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
+    <div className="mx-auto max-w-2xl space-y-6 pb-24 sm:pb-0">
 
       {/* Header */}
       <div className="flex items-center gap-2">
@@ -746,121 +752,207 @@ export function ImportView() {
             </div>
           </div>}
 
-          {/* Preview table */}
+          {/* Preview table / cards */}
           {previewRows.length > 0 && (
-            <div className="ll-card overflow-hidden p-0">
-              <div className="px-5 pt-4 pb-3" style={{ borderBottom: "1px solid hsl(var(--ll-border))" }}>
-                <h2 className="text-sm font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>
-                  Preview ({previewRows.length} row{previewRows.length !== 1 ? "s" : ""})
-                </h2>
-                {!previewShowAll && previewRows.length > 0 && (
-                  <p className="mt-1 text-[11px]" style={{ color: "hsl(var(--ll-text-muted))" }}>
-                    Showing{" "}
-                    {previewPageRows.length === 0 ? 0 : previewStartIdx + 1}
-                    –
-                    {previewStartIdx + previewPageRows.length} of {previewRows.length}
-                  </p>
-                )}
-              </div>
-              <div
-                className={
-                  previewShowAll && previewRows.length > 40
-                    ? "max-h-[min(70vh,720px)] overflow-y-auto overflow-x-auto"
-                    : "overflow-x-auto"
-                }
-              >
-                <table className="w-full text-xs">
-                  <thead>
-                    <tr style={{ borderBottom: "1px solid hsl(var(--ll-border))" }}>
-                      {[
-                        ...(mode === "ai" && rowsWithDups.length > 0 ? [""] : []),
-                        "Date", "Description", "Amount", "Type",
-                        ...(isMint || mode === "ai" ? ["Category"] : []),
-                        ...(mode === "ai" ? ["Confidence"] : []),
-                      ].map((h, idx) => (
-                        <th key={idx} className="px-4 py-2 text-left font-medium" style={{ color: "hsl(var(--ll-text-muted))" }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {previewPageRows.map((row, i) => {
-                      const globalIdx  = previewStartIdx + i;
-                      const rowWithDup = row as RowWithDup;
-                      const lowConf    = (row.confidence ?? 1) < 0.7;
-                      const isDup      = rowWithDup.isDuplicate === true;
-                      const isChecked  = checkedRows.has(globalIdx);
-                      return (
-                        <tr key={globalIdx} style={{
-                          borderBottom: i < previewPageRows.length - 1 ? "1px solid hsl(var(--ll-border) / 0.5)" : undefined,
-                          background: isDup
-                            ? "hsl(var(--ll-warning) / 0.05)"
-                            : lowConf ? "hsl(var(--ll-warning) / 0.04)" : undefined,
-                          opacity: mode === "ai" && rowsWithDups.length > 0 && !isChecked ? 0.45 : 1,
-                        }}>
-                          {mode === "ai" && rowsWithDups.length > 0 && (
-                            <td className="px-4 py-2">
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => {
-                                  const next = new Set(checkedRows);
-                                  if (isChecked) next.delete(globalIdx); else next.add(globalIdx);
-                                  setCheckedRows(next);
-                                }}
-                                className="h-3.5 w-3.5 cursor-pointer"
-                              />
-                            </td>
-                          )}
-                          <td className="px-4 py-2" style={{ color: "hsl(var(--ll-text-secondary))" }}>{row.date}</td>
-                          <td className="px-4 py-2 max-w-[180px]" style={{ color: "hsl(var(--ll-text-primary))" }}>
-                            <span className="block truncate">{row.description}</span>
-                            {isDup && (
-                              <span className="ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-semibold bg-[hsl(var(--ll-warning)/0.15)] text-[hsl(var(--ll-warning))]">
-                                Duplicate?
-                              </span>
+            <div className="space-y-4">
+              {/* Desktop Table */}
+              <div className="hidden sm:block ll-card overflow-hidden p-0">
+                <div className="px-5 pt-4 pb-3" style={{ borderBottom: "1px solid hsl(var(--ll-border))" }}>
+                  <h2 className="text-sm font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>
+                    Preview ({previewRows.length} row{previewRows.length !== 1 ? "s" : ""})
+                  </h2>
+                  {!previewShowAll && previewRows.length > 0 && (
+                    <p className="mt-1 text-[11px]" style={{ color: "hsl(var(--ll-text-muted))" }}>
+                      Showing{" "}
+                      {previewPageRows.length === 0 ? 0 : previewStartIdx + 1}
+                      –
+                      {previewStartIdx + previewPageRows.length} of {previewRows.length}
+                    </p>
+                  )}
+                </div>
+                <div
+                  className={
+                    previewShowAll && previewRows.length > 40
+                      ? "max-h-[min(70vh,720px)] overflow-y-auto overflow-x-auto"
+                      : "overflow-x-auto"
+                  }
+                >
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr style={{ borderBottom: "1px solid hsl(var(--ll-border))" }}>
+                        {[
+                          ...(mode === "ai" && rowsWithDups.length > 0 ? [""] : []),
+                          "Date", "Description", "Amount", "Type",
+                          ...(isMint || mode === "ai" ? ["Category"] : []),
+                          ...(mode === "ai" ? ["Confidence"] : []),
+                        ].map((h, idx) => (
+                          <th key={idx} className="px-4 py-2 text-left font-medium" style={{ color: "hsl(var(--ll-text-muted))" }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {previewPageRows.map((row, i) => {
+                        const globalIdx  = previewStartIdx + i;
+                        const rowWithDup = row as RowWithDup;
+                        const lowConf    = (row.confidence ?? 1) < 0.7;
+                        const isDup      = rowWithDup.isDuplicate === true;
+                        const isChecked  = checkedRows.has(globalIdx);
+                        return (
+                          <tr key={globalIdx} style={{
+                            borderBottom: i < previewPageRows.length - 1 ? "1px solid hsl(var(--ll-border) / 0.5)" : undefined,
+                            background: isDup
+                              ? "hsl(var(--ll-warning) / 0.05)"
+                              : lowConf ? "hsl(var(--ll-warning) / 0.04)" : undefined,
+                            opacity: mode === "ai" && rowsWithDups.length > 0 && !isChecked ? 0.45 : 1,
+                          }}>
+                            {mode === "ai" && rowsWithDups.length > 0 && (
+                              <td className="px-4 py-2">
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => toggleRow(globalIdx)}
+                                  className="h-3.5 w-3.5 cursor-pointer"
+                                />
+                              </td>
                             )}
-                            {recurringSuggestions.has(globalIdx) && (
-                              <span className="inline-flex items-center gap-1 mt-0.5">
-                                <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-[hsl(var(--ll-accent)/0.1)] text-[hsl(var(--ll-accent))]">
+                            <td className="px-4 py-2" style={{ color: "hsl(var(--ll-text-secondary))" }}>{row.date}</td>
+                            <td className="px-4 py-2 max-w-[180px]" style={{ color: "hsl(var(--ll-text-primary))" }}>
+                              <span className="block truncate">{row.description}</span>
+                              {isDup && (
+                                <span className="ml-1.5 rounded px-1.5 py-0.5 text-[10px] font-semibold bg-[hsl(var(--ll-warning)/0.15)] text-[hsl(var(--ll-warning))]">
+                                  Duplicate?
+                                </span>
+                              )}
+                              {recurringSuggestions.has(globalIdx) && (
+                                <span className="inline-flex items-center gap-1 mt-0.5">
+                                  <span className="rounded px-1.5 py-0.5 text-[10px] font-medium bg-[hsl(var(--ll-accent)/0.1)] text-[hsl(var(--ll-accent))]">
+                                    ↻ {recurringSuggestions.get(globalIdx)!.recurrence}
+                                  </span>
+                                  <button
+                                    type="button"
+                                    onClick={() => setRecurringOverrides(prev => new Map(prev).set(globalIdx, !(prev.get(globalIdx) ?? false)))}
+                                    className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
+                                      recurringOverrides.get(globalIdx)
+                                        ? "bg-[hsl(var(--ll-accent)/0.2)] text-[hsl(var(--ll-accent))]"
+                                        : "bg-[hsl(var(--ll-accent)/0.05)] text-[hsl(var(--ll-text-muted))] line-through"
+                                    }`}
+                                    title={recurringOverrides.get(globalIdx) ? "Click to dismiss recurring" : "Click to accept recurring"}
+                                  >
+                                    {recurringOverrides.get(globalIdx) ? "recurring" : "dismiss"}
+                                  </button>
+                                </span>
+                              )}
+                            </td>
+                            <td className="px-4 py-2 font-mono" style={{ color: row.type === "income" ? "hsl(var(--ll-income))" : "hsl(var(--ll-expense))" }}>
+                              {row.type === "expense" ? "-" : "+"}{row.amount.toFixed(2)}
+                            </td>
+                            <td className="px-4 py-2 capitalize" style={{ color: row.type === "income" ? "hsl(var(--ll-income))" : "hsl(var(--ll-expense))" }}>{row.type}</td>
+                            {(isMint || mode === "ai") && (
+                              <td className="px-4 py-2 max-w-[110px] truncate" style={{ color: "hsl(var(--ll-text-muted))" }}>{row.categoryName ?? "—"}</td>
+                            )}
+                            {mode === "ai" && (
+                              <td className="px-4 py-2">
+                                <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${lowConf ? "bg-[hsl(var(--ll-warning)/0.1)] text-[hsl(var(--ll-warning))]" : "bg-[hsl(var(--ll-income)/0.1)] text-[hsl(var(--ll-income))]"}`}>
+                                  {Math.round((row.confidence ?? 1) * 100)}%
+                                </span>
+                              </td>
+                            )}
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Mobile Card List */}
+              <div className="block sm:hidden space-y-3">
+                <div className="flex items-center justify-between px-1">
+                  <h2 className="text-sm font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>
+                    Review Transactions
+                  </h2>
+                  <span className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-[hsl(var(--ll-bg-elevated))] border" style={{ borderColor: "hsl(var(--ll-border))", color: "hsl(var(--ll-text-muted))" }}>
+                    {previewPageRows.length} of {previewRows.length}
+                  </span>
+                </div>
+                
+                {previewPageRows.map((row, i) => {
+                  const globalIdx = previewStartIdx + i;
+                  const isChecked = checkedRows.has(globalIdx);
+                  const isDup = (row as RowWithDup).isDuplicate;
+                  const lowConf = (row.confidence ?? 1) < 0.7;
+
+                  return (
+                    <div 
+                      key={globalIdx}
+                      onClick={() => toggleRow(globalIdx)}
+                      className={`ll-card p-4 active:scale-[0.98] transition-all border-l-4 ${
+                        !isChecked ? 'opacity-50 grayscale-[0.5]' : ''
+                      }`}
+                      style={{ 
+                        borderLeftColor: row.type === 'income' ? 'hsl(var(--ll-income))' : 'hsl(var(--ll-expense))',
+                        background: isDup ? 'hsl(var(--ll-warning)/0.05)' : undefined
+                      }}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="mt-1">
+                          <input 
+                            type="checkbox" 
+                            checked={isChecked} 
+                            readOnly 
+                            className="h-4 w-4 rounded border-gray-300 text-indigo-600 focus:ring-indigo-600" 
+                          />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-start gap-2">
+                            <p className="text-xs font-semibold truncate" style={{ color: "hsl(var(--ll-text-primary))" }}>
+                              {row.description}
+                            </p>
+                            <p className="text-sm font-bold tabular-nums shrink-0" style={{ color: row.type === 'income' ? 'hsl(var(--ll-income))' : 'hsl(var(--ll-text-primary))' }}>
+                              {row.type === 'expense' ? '-' : '+'}{row.amount.toFixed(2)}
+                            </p>
+                          </div>
+                          
+                          <div className="mt-1 flex items-center gap-2 text-[10px]" style={{ color: "hsl(var(--ll-text-muted))" }}>
+                            <Calendar className="h-3 w-3" />
+                            <span>{row.date}</span>
+                            {row.categoryName && (
+                              <>
+                                <span>•</span>
+                                <span className="truncate">{row.categoryName}</span>
+                              </>
+                            )}
+                          </div>
+
+                          {(isDup || lowConf || recurringSuggestions.has(globalIdx)) && (
+                            <div className="mt-2 flex flex-wrap gap-1.5">
+                              {isDup && (
+                                <span className="rounded px-1.5 py-0.5 text-[9px] font-bold bg-[hsl(var(--ll-warning)/0.15)] text-[hsl(var(--ll-warning))]">
+                                  DUPLICATE
+                                </span>
+                              )}
+                              {lowConf && (
+                                <span className="rounded px-1.5 py-0.5 text-[9px] font-bold bg-[hsl(var(--ll-warning)/0.1)] text-[hsl(var(--ll-warning))] uppercase">
+                                  Check AI ({Math.round(row.confidence! * 100)}%)
+                                </span>
+                              )}
+                              {recurringSuggestions.has(globalIdx) && (
+                                <span className="rounded px-1.5 py-0.5 text-[9px] font-bold bg-[hsl(var(--ll-accent)/0.1)] text-[hsl(var(--ll-accent))] uppercase">
                                   ↻ {recurringSuggestions.get(globalIdx)!.recurrence}
                                 </span>
-                                <button
-                                  type="button"
-                                  onClick={() => setRecurringOverrides(prev => new Map(prev).set(globalIdx, !(prev.get(globalIdx) ?? false)))}
-                                  className={`rounded px-1.5 py-0.5 text-[10px] font-medium transition-colors ${
-                                    recurringOverrides.get(globalIdx)
-                                      ? "bg-[hsl(var(--ll-accent)/0.2)] text-[hsl(var(--ll-accent))]"
-                                      : "bg-[hsl(var(--ll-accent)/0.05)] text-[hsl(var(--ll-text-muted))] line-through"
-                                  }`}
-                                  title={recurringOverrides.get(globalIdx) ? "Click to dismiss recurring" : "Click to accept recurring"}
-                                >
-                                  {recurringOverrides.get(globalIdx) ? "recurring" : "dismiss"}
-                                </button>
-                              </span>
-                            )}
-                          </td>
-                          <td className="px-4 py-2 font-mono" style={{ color: row.type === "income" ? "hsl(var(--ll-income))" : "hsl(var(--ll-expense))" }}>
-                            {row.type === "expense" ? "-" : "+"}{row.amount.toFixed(2)}
-                          </td>
-                          <td className="px-4 py-2 capitalize" style={{ color: row.type === "income" ? "hsl(var(--ll-income))" : "hsl(var(--ll-expense))" }}>{row.type}</td>
-                          {(isMint || mode === "ai") && (
-                            <td className="px-4 py-2 max-w-[110px] truncate" style={{ color: "hsl(var(--ll-text-muted))" }}>{row.categoryName ?? "—"}</td>
+                              )}
+                            </div>
                           )}
-                          {mode === "ai" && (
-                            <td className="px-4 py-2">
-                              <span className={`rounded px-1.5 py-0.5 text-[10px] font-medium ${lowConf ? "bg-[hsl(var(--ll-warning)/0.1)] text-[hsl(var(--ll-warning))]" : "bg-[hsl(var(--ll-income)/0.1)] text-[hsl(var(--ll-income))]"}`}>
-                                {Math.round((row.confidence ?? 1) * 100)}%
-                              </span>
-                            </td>
-                          )}
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
+
+              {/* Shared Pagination Footer */}
               <div
-                className="flex flex-col gap-2 border-t px-5 py-3 sm:flex-row sm:items-center sm:justify-between"
+                className="flex flex-col gap-2 border-t px-5 py-3 sm:flex-row sm:items-center sm:justify-between ll-card !rounded-t-none"
                 style={{ borderColor: "hsl(var(--ll-border))" }}
               >
                 <label className="flex items-center gap-2 text-[11px]" style={{ color: "hsl(var(--ll-text-secondary))" }}>
@@ -931,15 +1023,15 @@ export function ImportView() {
             </p>
           )}
 
-          <div className="flex gap-3">
-            <button onClick={reset} className="flex-none rounded-lg px-4 py-2 text-sm font-medium transition-colors"
+          <div className="flex gap-3 sm:flex">
+            <button onClick={reset} className="flex-none rounded-lg px-4 py-2 text-sm font-medium transition-colors hidden sm:block"
               style={{ background: "hsl(var(--ll-bg-elevated))", color: "hsl(var(--ll-text-secondary))", border: "1px solid hsl(var(--ll-border))" }}>
               Back
             </button>
             <button
               onClick={handleImport}
               disabled={importing || aiParsing || previewRows.length === 0 || !accountId || (mode === "ai" && rowsWithDups.length > 0 && checkedCount === 0)}
-              className="flex-1 rounded-lg py-2 text-sm font-medium text-white disabled:opacity-50 transition-colors"
+              className="flex-1 rounded-lg py-2 text-sm font-medium text-white disabled:opacity-50 transition-colors hidden sm:block"
               style={{ background: "hsl(var(--ll-accent))" }}
             >
               {importing
@@ -950,6 +1042,34 @@ export function ImportView() {
                     ? `Import ${aiRows.length} transaction${aiRows.length !== 1 ? "s" : ""}`
                     : `Import ${allRows.length} transaction${allRows.length !== 1 ? "s" : ""}`}
             </button>
+          </div>
+
+          {/* Mobile Sticky Footer */}
+          <div className="fixed bottom-0 left-0 right-0 z-50 block sm:hidden bg-white/80 backdrop-blur-md border-t p-4 pb-safe shadow-[0_-4px_12px_rgba(0,0,0,0.05)]" style={{ borderColor: "hsl(var(--ll-border))" }}>
+            <div className="mx-auto max-w-md flex items-center gap-3">
+              <button 
+                onClick={reset}
+                className="flex h-11 w-11 items-center justify-center rounded-xl border transition-all active:scale-95"
+                style={{ background: "hsl(var(--ll-bg-elevated))", color: "hsl(var(--ll-text-secondary))", borderColor: "hsl(var(--ll-border))" }}
+              >
+                <Trash2 className="h-5 w-5" />
+              </button>
+              <button
+                onClick={handleImport}
+                disabled={importing || aiParsing || previewRows.length === 0 || !accountId || (mode === "ai" && rowsWithDups.length > 0 && checkedCount === 0)}
+                className="flex-1 h-11 rounded-xl text-sm font-bold text-white shadow-lg shadow-indigo-500/20 transition-all active:scale-[0.98] disabled:opacity-50 disabled:grayscale"
+                style={{ background: "hsl(var(--ll-accent))" }}
+              >
+                {importing ? (
+                  <div className="flex items-center justify-center gap-2">
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    <span>Processing...</span>
+                  </div>
+                ) : (
+                  `Import ${checkedCount || aiRows.length || allRows.length} Transactions`
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}
