@@ -231,20 +231,84 @@ interface ParsedResponse {
   rawCount:     number;
 }
 
+function inferTxnYear(meta: StatementMeta | null): number | null {
+  const yFrom = meta?.statementFrom?.slice(0, 4);
+  const yTo   = meta?.statementTo?.slice(0, 4);
+  const y = (yTo ?? yFrom) ? parseInt(String(yTo ?? yFrom), 10) : NaN;
+  return Number.isFinite(y) ? y : null;
+}
+
+function parseTxnDate(raw: unknown, meta: StatementMeta | null): string | null {
+  const s = String(raw ?? "").trim();
+  if (!s) return null;
+
+  // Already ISO
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  // Accept DD/MM[/YY|YYYY] (default DD/MM per prompt)
+  const m = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})(?:[\/\-\.](\d{2,4}))?$/);
+  if (!m) return null;
+
+  const dd = parseInt(m[1], 10);
+  const mm = parseInt(m[2], 10);
+  if (!(dd >= 1 && dd <= 31 && mm >= 1 && mm <= 12)) return null;
+
+  let yyyy: number | null = null;
+  if (m[3]) {
+    const y = parseInt(m[3], 10);
+    if (!Number.isFinite(y)) return null;
+    yyyy = m[3].length === 2 ? (2000 + y) : y;
+  } else {
+    yyyy = inferTxnYear(meta);
+  }
+  if (!yyyy) return null;
+
+  const iso = `${String(yyyy).padStart(4, "0")}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso : null;
+}
+
+function normaliseWithMeta(raw: unknown[], meta: StatementMeta | null): AIParsedRow[] {
+  const rows: AIParsedRow[] = [];
+  for (const item of raw) {
+    if (typeof item !== "object" || item === null) continue;
+    const r = item as Record<string, unknown>;
+
+    const date = parseTxnDate(r.date, meta);
+    if (!date) continue;
+
+    const amount = parseFloat(String(r.amount ?? "0"));
+    if (isNaN(amount) || amount <= 0) continue;
+
+    const rb = parseFloat(String(r.runningBalance ?? ""));
+    rows.push({
+      date,
+      description:    String(r.description ?? "").slice(0, 300).trim() || "Unknown",
+      amount:         Math.round(amount * 100) / 100,
+      type:           r.type === "income" ? "income" : "expense",
+      categoryName:   String(r.categoryName ?? "Other").slice(0, 80).trim(),
+      confidence:     Math.min(1, Math.max(0, parseFloat(String(r.confidence ?? "0.5")))),
+      isTransfer:     r.isTransfer === true,
+      reference:      typeof r.reference === "string" && r.reference.trim() ? r.reference.trim().slice(0, 100) : null,
+      runningBalance: isNaN(rb) ? null : Math.round(rb * 100) / 100,
+    });
+  }
+  return rows;
+}
+
 function parseJSON(content: string): ParsedResponse {
   const cleaned = content.replace(/^```(?:json)?\n?/m, "").replace(/\n?```$/m, "").trim();
   const raw = JSON.parse(cleaned);
 
   // New format: { meta, transactions }
   if (raw && typeof raw === "object" && !Array.isArray(raw) && Array.isArray(raw.transactions)) {
-    const txns = normalise(raw.transactions);
     const meta = raw.meta && typeof raw.meta === "object" ? normaliseMeta(raw.meta as Record<string, unknown>) : null;
+    const txns = normaliseWithMeta(raw.transactions, meta);
     return { transactions: txns, meta, rawCount: raw.transactions.length };
   }
 
   // Fallback: plain array (old format or model non-compliance)
   const arr = Array.isArray(raw) ? raw : [];
-  return { transactions: normalise(arr), meta: null, rawCount: arr.length };
+  return { transactions: normaliseWithMeta(arr, null), meta: null, rawCount: arr.length };
 }
 
 // ─── CSV parse — OpenAI primary, DeepSeek fallback ───────────────────────────
