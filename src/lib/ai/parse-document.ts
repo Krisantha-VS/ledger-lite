@@ -145,38 +145,12 @@ Rules:
 - do NOT include opening/closing balance rows or statement summary rows as transactions
 - do NOT include reversed/voided transactions (a transaction immediately cancelled by an equal and opposite entry on the same date)
 - include every other transaction row without omission
+- duplicate merchant names or duplicate amounts on different dates are still separate transactions — never skip a row because it "looks like" another
+- continue through the full transaction list until the printed subtotal / section footer (e.g. SUBTOTAL, TOTAL FOR PERIOD) — do not stop early
 - include every meta key shown in the schema above (use null for any value not found or not applicable)
 - all meta fields default to null if not found in the statement`;
 
 // ─── Validate + normalise LLM output ─────────────────────────────────────────
-
-function normalise(raw: unknown[]): AIParsedRow[] {
-  const rows: AIParsedRow[] = [];
-  for (const item of raw) {
-    if (typeof item !== "object" || item === null) continue;
-    const r = item as Record<string, unknown>;
-
-    const date = String(r.date ?? "").trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
-
-    const amount = parseFloat(String(r.amount ?? "0"));
-    if (isNaN(amount) || amount <= 0) continue;
-
-    const rb = parseFloat(String(r.runningBalance ?? ""));
-    rows.push({
-      date,
-      description:    String(r.description ?? "").slice(0, 300).trim() || "Unknown",
-      amount:         Math.round(amount * 100) / 100,
-      type:           r.type === "income" ? "income" : "expense",
-      categoryName:   String(r.categoryName ?? "Other").slice(0, 80).trim(),
-      confidence:     Math.min(1, Math.max(0, parseFloat(String(r.confidence ?? "0.5")))),
-      isTransfer:     r.isTransfer === true,
-      reference:      typeof r.reference === "string" && r.reference.trim() ? r.reference.trim().slice(0, 100) : null,
-      runningBalance: isNaN(rb) ? null : Math.round(rb * 100) / 100,
-    });
-  }
-  return rows;
-}
 
 function normaliseMeta(raw: Record<string, unknown>): StatementMeta {
   const str  = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
@@ -313,21 +287,43 @@ function parseJSON(content: string): ParsedResponse {
 
 // ─── CSV parse — OpenAI primary, DeepSeek fallback ───────────────────────────
 
+/** Model input budget (chars). Keep head+tail when oversized so long PDFs still include txn tables. */
+const MAX_STATEMENT_INPUT_CHARS = 120_000;
+/** Enough room for large statements + full meta JSON (Anthropic was 4096 and truncated mid-array). */
+const MAX_COMPLETION_TOKENS = 16_384;
+
+function prepareStatementInputText(raw: string): string {
+  const t = raw.trim();
+  if (t.length <= MAX_STATEMENT_INPUT_CHARS) return t;
+  const headLen = Math.floor(MAX_STATEMENT_INPUT_CHARS * 0.58);
+  const tailLen = MAX_STATEMENT_INPUT_CHARS - headLen - 120;
+  const head = t.slice(0, headLen);
+  const tail = t.slice(-tailLen);
+  const omitted = t.length - headLen - tailLen;
+  return `${head}\n\n[... ${omitted} characters omitted from middle — extract transactions from both sections above ...]\n\n${tail}`;
+}
+
 export async function parseCSVWithAI(csvText: string): Promise<ParseResult> {
-  const userMessage = `Extract all transactions from this CSV bank statement:\n\n${csvText.slice(0, 40_000)}`;
+  const body = prepareStatementInputText(csvText);
+  const userMessage = `Extract all transactions from this bank statement text:\n\n${body}`;
 
   // Primary: OpenAI GPT-4o-mini
   if (process.env.OPENAI_API_KEY) {
     try {
       const res = await getOpenAI().chat.completions.create({
-        model:       "gpt-4o-mini",
-        temperature: 0,
+        model:                 "gpt-4o-mini",
+        temperature:           0,
+        max_completion_tokens: MAX_COMPLETION_TOKENS,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user",   content: userMessage },
         ],
       });
-      const parsed = parseJSON(res.choices[0]?.message?.content ?? "{}");
+      const content = res.choices[0]?.message?.content ?? "{}";
+      if (res.choices[0]?.finish_reason === "length") {
+        console.warn("[parse-document] OpenAI hit output limit (finish_reason=length); consider raising MAX_COMPLETION_TOKENS");
+      }
+      const parsed = parseJSON(content);
       return { ...parsed, provider: "openai", model: "gpt-4o-mini" };
     } catch (err) {
       console.error("[parse-document] OpenAI GPT-4o-mini failed:", err instanceof Error ? err.message : err);
@@ -339,7 +335,7 @@ export async function parseCSVWithAI(csvText: string): Promise<ParseResult> {
     try {
       const res = await getAnthropic().messages.create({
         model:       "claude-haiku-4-5-20251001",
-        max_tokens:  4096,
+        max_tokens:  MAX_COMPLETION_TOKENS,
         system:      SYSTEM_PROMPT,
         messages: [{ role: "user", content: userMessage }],
       });
@@ -357,6 +353,7 @@ export async function parseCSVWithAI(csvText: string): Promise<ParseResult> {
       const res = await getDeepSeek().chat.completions.create({
         model:       "deepseek-chat",
         temperature: 0,
+        max_tokens:  MAX_COMPLETION_TOKENS,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user",   content: userMessage },
