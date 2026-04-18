@@ -3,6 +3,7 @@ import { ok, fail, handleError, getUserId } from "@/lib/api";
 import { DEFAULT_CATEGORIES } from "@/lib/categories";
 import { Prisma } from "@prisma/client";
 import { z } from "zod";
+import { getEntitlements } from "@/lib/subscriptions";
 
 const CreateSchema = z.object({
   name:            z.string().min(1).max(100),
@@ -23,6 +24,11 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const userId = await getUserId(req);
+    const ent = await getEntitlements(userId)
+    const accountCount = await db.account.count({ where: { userId, isArchived: false } })
+    if (accountCount >= ent.maxAccounts) {
+      return fail("Account limit reached for your plan. Upgrade to add more accounts.", 403)
+    }
     const body   = CreateSchema.parse(await req.json());
 
     const account = await db.account.create({ data: { userId, ...body } });

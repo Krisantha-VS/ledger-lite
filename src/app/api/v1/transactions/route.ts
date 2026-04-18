@@ -3,6 +3,7 @@ import { ok, fail, handleError, getUserId } from "@/lib/api";
 import { getUserEmail } from "@/lib/auth";
 import { z } from "zod";
 import type { Prisma } from "@prisma/client";
+import { getEntitlements } from "@/lib/subscriptions";
 import { sendMail } from "@/infrastructure/email/mailer";
 import { largeExpenseEmail, recurringTransactionEmail } from "@/infrastructure/email/templates";
 
@@ -23,6 +24,7 @@ const CreateSchema = z.object({
 export async function GET(req: Request) {
   try {
     const userId = await getUserId(req);
+    const ent    = await getEntitlements(userId);
     const url    = new URL(req.url);
     const p      = url.searchParams;
 
@@ -38,6 +40,10 @@ export async function GET(req: Request) {
       where.date = {};
       if (p.get("dateFrom")) where.date.gte = new Date(p.get("dateFrom")!);
       if (p.get("dateTo"))   where.date.lte = new Date(p.get("dateTo")!);
+    }
+    if (ent.historyMonths !== Infinity) {
+      const cutoff = new Date(); cutoff.setMonth(cutoff.getMonth() - ent.historyMonths)
+      where.date = { ...((where.date as any) ?? {}), gte: cutoff }
     }
 
     if (p.get("search")) {
@@ -71,6 +77,14 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const userId    = await getUserId(req);
+    const ent = await getEntitlements(userId)
+    if (ent.maxMonthlyTransactions !== Infinity) {
+      const monthStart = new Date(); monthStart.setDate(1); monthStart.setHours(0,0,0,0)
+      const monthCount = await db.transaction.count({ where: { userId, createdAt: { gte: monthStart }, deletedAt: null } })
+      if (monthCount >= ent.maxMonthlyTransactions) {
+        return fail("Monthly transaction limit reached for your plan. Upgrade for unlimited transactions.", 403)
+      }
+    }
     const userEmail = await getUserEmail(req);
     const body      = CreateSchema.parse(await req.json());
 

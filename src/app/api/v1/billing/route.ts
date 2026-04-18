@@ -13,9 +13,11 @@ export async function GET(req: Request) {
     return ok({
       plan: sub.plan,
       status: sub.status,
-      trialEndsAt: sub.trialEndsAt,
+      billing: sub.billing,
       currentPeriodEnd: sub.currentPeriodEnd,
-      isTrial: sub.plan !== "free" && sub.trialEndsAt && sub.trialEndsAt > new Date(),
+      cancelAtPeriodEnd: sub.cancelAtPeriodEnd,
+      gracePeriodEndsAt: sub.gracePeriodEndsAt,
+      inGracePeriod: sub.status === "past_due" && sub.gracePeriodEndsAt != null && sub.gracePeriodEndsAt > new Date(),
     });
   } catch (e) {
     return handleError(e);

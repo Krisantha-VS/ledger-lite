@@ -1,6 +1,6 @@
 import { ok, fail, handleError, getUserId } from "@/lib/api";
 import { parseDocument } from "@/lib/ai/parse-document";
-import { canUseAI } from "@/lib/subscriptions";
+import { checkAndIncrementAiImport, getEntitlements } from "@/lib/subscriptions";
 
 export const maxDuration = 60; // allow up to 60s for LLM parsing
 
@@ -8,8 +8,14 @@ export async function POST(req: Request) {
   try {
     const userId = await getUserId(req);
 
-    if (!(await canUseAI(userId))) {
-      return fail("AI Import is a premium feature. Upgrade to Lite or Pro to use AI statement parsing.", 403);
+    const { allowed, remaining } = await checkAndIncrementAiImport(userId)
+    if (!allowed) {
+      return fail(
+        remaining === 0 && (await getEntitlements(userId)).plan === "free"
+          ? "AI Import requires a paid plan. Upgrade to Lite or Pro."
+          : "Monthly AI import limit reached. Upgrade to Pro for unlimited imports.",
+        403
+      )
     }
 
     const hasAI = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.DEEPSEEK_API_KEY;

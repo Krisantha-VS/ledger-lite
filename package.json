@@ -4,10 +4,11 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "prisma db execute --file prisma/migrations/20250416190000_add_subscription/migration.sql",
+    "prebuild": "prisma db execute --file prisma/migrations/20250416190000_add_subscription/migration.sql && prisma db execute --file prisma/migrations/20260418000000_payments_v1/migration.sql",
     "build": "prisma generate && next build",
     "db:migrate": "prisma migrate deploy",
     "db:apply-subscription": "prisma db execute --file prisma/migrations/20250416190000_add_subscription/migration.sql",
+    "db:apply-payments": "prisma db execute --file prisma/migrations/20260418000000_payments_v1/migration.sql",
     "start": "next start",
     "postinstall": "prisma generate"
   },
@@ -18,6 +19,7 @@
     "@prisma/adapter-neon": "^7.4.2",
     "@prisma/client": "^7.4.2",
     "@tanstack/react-query": "^5.90.21",
+    "@vercel/functions": "^3.4.3",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "framer-motion": "^12.35.1",

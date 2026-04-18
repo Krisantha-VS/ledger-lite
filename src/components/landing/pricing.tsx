@@ -327,14 +327,7 @@ export function Pricing() {
           ))}
         </div>
 
-        {/* Bottom note */}
-        <p
-          className="mt-10 text-center text-xs"
-          style={{ color: "var(--land-muted)" }}
-        >
-          Payments launching soon &middot; Sign up free and you&apos;ll be
-          notified when billing goes live.
-        </p>
+
       </div>
     </section>
   );
