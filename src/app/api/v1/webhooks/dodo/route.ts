@@ -159,14 +159,14 @@ export async function POST(req: Request) {
 
       waitUntil(sendReceiptAsync({ userId, plan: resolvedPlan, billing: resolvedBilling, data, traceId, intentEmail }))
 
-    } else if (eventType === "subscription.canceled") {
+    } else if (eventType === "subscription.canceled" || eventType === "subscription.cancelled") {
       await db.subscription.update({
         where: { userId },
         data: { status: "canceled", cancelAtPeriodEnd: true, lastEventAt: eventTimestamp },
       })
       waitUntil(sendCancelledAsync({ userId, currentPeriodEnd, traceId }))
 
-    } else if (eventType === "subscription.failed" || eventType === "subscription.payment_failed") {
+    } else if (["subscription.failed", "subscription.payment_failed", "payment.failed"].includes(eventType)) {
       const gracePeriodEndsAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
       await db.subscription.update({
         where: { userId },
