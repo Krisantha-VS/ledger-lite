@@ -70,8 +70,9 @@ function CheckoutHandlerInner() {
           toast.error("Payment system is not ready. Please try again in a moment.")
         }
       } catch (err) {
-        console.error("[checkout]", err)
-        toast.error("Could not start checkout. Please try again from settings.")
+        const msg = err instanceof Error ? err.message : String(err)
+        console.error("[checkout]", msg)
+        toast.error(`Checkout error: ${msg}`)
       }
     }
 
