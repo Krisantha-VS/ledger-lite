@@ -52,32 +52,50 @@ export async function GET(req: Request) {
     const apiKey = process.env.DODO_API_KEY
     if (!apiKey) return fail("Checkout not configured — DODO_API_KEY missing", 503)
 
-    // Create a Dodo checkout session server-side
-    const sessionRes = await fetch(`${DODO_BASE}/checkouts`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${apiKey}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        product_cart: [{ product_id: productId, quantity: 1 }],
-        customer:     { email },
-        metadata:     { intentId, traceId: intent.traceId },
-      }),
-    })
+    // Create a Dodo checkout session server-side (8s timeout — under Vercel 10s limit)
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), 8000)
 
+    let sessionRes: Response
+    try {
+      sessionRes = await fetch(`${DODO_BASE}/checkouts`, {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          product_cart: [{ product_id: productId, quantity: 1 }],
+          customer:     { email },
+          metadata:     { intentId, traceId: intent.traceId },
+        }),
+        signal: controller.signal,
+      })
+    } catch (fetchErr: any) {
+      clearTimeout(timer)
+      const msg = fetchErr?.name === "AbortError" ? "Dodo API timed out" : `Dodo fetch failed: ${fetchErr?.message}`
+      log("error", "checkout.fetch_failed", { userId, msg })
+      return fail(msg, 502)
+    }
+    clearTimeout(timer)
+
+    const rawBody = await sessionRes.text()
     if (!sessionRes.ok) {
-      const err = await sessionRes.text()
-      log("error", "checkout.session_failed", { userId, status: sessionRes.status, err })
-      return fail(`Dodo session error: ${sessionRes.status}`, 502)
+      log("error", "checkout.session_failed", { userId, status: sessionRes.status, body: rawBody.slice(0, 300) })
+      return fail(`Dodo error ${sessionRes.status}: ${rawBody.slice(0, 200)}`, 502)
     }
 
-    const session = await sessionRes.json()
+    let session: any
+    try { session = JSON.parse(rawBody) } catch {
+      log("error", "checkout.bad_json", { userId, rawBody: rawBody.slice(0, 300) })
+      return fail("Dodo returned invalid JSON", 502)
+    }
+
     const checkoutUrl = session.checkout_url ?? session.url ?? session.payment_url
 
     if (!checkoutUrl) {
       log("error", "checkout.no_url", { userId, session })
-      return fail("No checkout URL returned from Dodo", 502)
+      return fail(`No checkout URL in Dodo response: ${JSON.stringify(session).slice(0, 200)}`, 502)
     }
 
     log("info", "checkout.session_created", { userId, plan, billing, founding, intentId })
