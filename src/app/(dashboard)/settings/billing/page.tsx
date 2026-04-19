@@ -41,14 +41,21 @@ export default function BillingPage() {
   const plan       = data?.plan ?? "free"
   const badge      = PLAN_BADGE[plan] ?? PLAN_BADGE.free
   const statusInfo = data ? (STATUS_INDICATOR[data.status] ?? { label: data.status, dot: "hsl(var(--ll-text-muted))" }) : null
-  const canCancel  = !!data && plan !== "free" && data.status === "active" && !data.cancelAtPeriodEnd && !cancelled
+  const canCancel  = !!data && plan !== "free" && data.status === "active" && !cancelled
 
-  async function handleCancel() {
-    if (!confirm("Cancel your subscription? You will keep access until the end of your billing period.")) return
+  async function handleCancel(immediately = false) {
+    const msg = immediately
+      ? "Cancel immediately? Your plan will revert to Free right now."
+      : "Cancel at period end? You will keep access until your billing period ends."
+    if (!confirm(msg)) return
     setCancelling(true)
     setCancelError("")
     try {
-      const res  = await authFetch("/api/v1/billing/cancel", { method: "POST" })
+      const res  = await authFetch("/api/v1/billing/cancel", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ immediately }),
+      })
       const json = await res.json()
       if (!json.success) throw new Error(json.error ?? "Failed to cancel")
       setCancelled(true)
@@ -109,12 +116,21 @@ export default function BillingPage() {
                 {badge.label}
               </span>
               {canCancel && (
-                <button onClick={handleCancel} disabled={cancelling}
-                  className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
-                  style={{ color: "hsl(var(--ll-expense))", border: "1px solid hsl(var(--ll-expense) / 0.4)" }}>
-                  <X className="h-3 w-3" />
-                  {cancelling ? "Cancelling..." : "Cancel plan"}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => handleCancel(true)} disabled={cancelling}
+                    className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-opacity hover:opacity-80 disabled:opacity-50"
+                    style={{ color: "hsl(var(--ll-expense))", border: "1px solid hsl(var(--ll-expense) / 0.4)" }}>
+                    <X className="h-3 w-3" />
+                    {cancelling ? "Cancelling..." : "Cancel now"}
+                  </button>
+                  {!data?.cancelAtPeriodEnd && (
+                    <button onClick={() => handleCancel(false)} disabled={cancelling}
+                      className="text-xs transition-opacity hover:opacity-70 disabled:opacity-50"
+                      style={{ color: "hsl(var(--ll-text-muted))" }}>
+                      at period end
+                    </button>
+                  )}
+                </div>
               )}
             </div>
 
