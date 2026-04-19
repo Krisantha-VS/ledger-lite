@@ -5,7 +5,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useTheme } from "next-themes";
-import { Settings, Download, Trash2, CreditCard, Sparkles } from "lucide-react";
+import { Settings, Download, Trash2, CreditCard, Sparkles, ChevronRight } from "lucide-react";
+import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useSettings } from "@/features/settings/hooks/useSettings";
@@ -126,30 +127,21 @@ export function SettingsView() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium capitalize" style={{ color: "hsl(var(--ll-text-primary))" }}>
-                {billing?.plan} Plan
-                {billing?.isTrial && (
-                  <span className="ml-2 rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
-                    style={{ background: "hsl(var(--ll-accent) / 0.15)", color: "hsl(var(--ll-accent))" }}>
-                    Trial
-                  </span>
-                )}
+                {billing?.plan ?? "Free"} Plan
               </p>
               <p className="text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>
-                {billing?.isTrial
-                  ? `Trial ends on ${new Date(billing.trialEndsAt).toLocaleDateString()}`
-                  : billing?.plan === "free" ? "Limited features" : "Full access active"}
+                {billing?.plan === "free" || !billing?.plan ? "Limited features" : "Full access active"}
               </p>
             </div>
-            {billing?.plan === "free" && (
-              <a
-                href="/#pricing"
-                className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold text-white transition-opacity hover:opacity-90"
-                style={{ background: "hsl(var(--ll-accent))" }}
-              >
-                <Sparkles className="h-3 w-3" />
-                Upgrade
-              </a>
-            )}
+            <Link href="/settings/billing"
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-90"
+              style={billing?.plan === "free" || !billing?.plan
+                ? { background: "hsl(var(--ll-accent))", color: "#fff" }
+                : { color: "hsl(var(--ll-text-secondary))", border: "1px solid hsl(var(--ll-border))" }}>
+              {billing?.plan === "free" || !billing?.plan
+                ? <><Sparkles className="h-3 w-3" /> Upgrade</>
+                : <><CreditCard className="h-3 w-3" /> Manage billing <ChevronRight className="h-3 w-3" /></>}
+            </Link>
           </div>
         )}
       </div>
