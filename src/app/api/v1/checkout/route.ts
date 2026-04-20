@@ -1,12 +1,9 @@
 import { ok, fail, handleError, getUserId } from "@/lib/api"
-import { getDodoProductId, DodoPlan, DodoBilling } from "@/lib/payments/dodo"
+import { getDodoProductId, DodoPlan, DodoBilling, DODO_BASE } from "@/lib/payments/dodo"
 import { getUserEmail } from "@/lib/auth"
 import { db } from "@/lib/db"
 import { log } from "@/lib/logger"
 
-const DODO_BASE = process.env.DODO_MODE === "test"
-  ? "https://test.dodopayments.com"
-  : "https://live.dodopayments.com"
 
 export async function GET(req: Request) {
   try {

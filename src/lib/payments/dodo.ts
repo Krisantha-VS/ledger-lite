@@ -1,6 +1,10 @@
 export type DodoPlan    = "lite" | "pro"
 export type DodoBilling = "monthly" | "annual"
 
+export const DODO_BASE = process.env.DODO_MODE === "test"
+  ? "https://test.dodopayments.com"
+  : "https://live.dodopayments.com"
+
 const IDS = {
   lite: {
     monthly: process.env.DODO_PRODUCT_LITE_MONTHLY ?? "",

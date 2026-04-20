@@ -1,8 +1,7 @@
 import { ok, fail, handleError, getUserId } from "@/lib/api"
 import { db } from "@/lib/db"
 import { log } from "@/lib/logger"
-
-const DODO_API_URL = "https://api.dodopayments.com"
+import { DODO_BASE } from "@/lib/payments/dodo"
 
 export async function POST(req: Request) {
   try {
@@ -20,7 +19,7 @@ export async function POST(req: Request) {
       const apiKey = process.env.DODO_API_KEY
       if (apiKey) {
         const payload = immediately ? { status: "cancelled" } : { cancel_at_period_end: true }
-        const res = await fetch(`${DODO_API_URL}/subscriptions/${sub.dodoSubscriptionId}`, {
+        const res = await fetch(`${DODO_BASE}/subscriptions/${sub.dodoSubscriptionId}`, {
           method: "PATCH",
           headers: { "Authorization": `Bearer ${apiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify(payload),
