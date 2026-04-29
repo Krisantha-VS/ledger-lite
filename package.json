@@ -9,7 +9,7 @@
     "postinstall": "prisma generate"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.88.0",
+    "@anthropic-ai/sdk": "^0.91.1",
     "@hookform/resolvers": "^5.2.2",
     "@neondatabase/serverless": "^1.0.2",
     "@prisma/adapter-neon": "^7.4.2",
