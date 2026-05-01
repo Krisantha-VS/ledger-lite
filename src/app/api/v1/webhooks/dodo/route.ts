@@ -128,7 +128,7 @@ export async function POST(req: Request) {
           : data.current_period_end)
       : null
 
-    if (["subscription.activated", "subscription.renewed", "subscription.active"].includes(eventType)) {
+    if (["subscription.activated", "subscription.renewed", "subscription.active", "subscription.created"].includes(eventType)) {
       await db.subscription.upsert({
         where: { userId },
         update: {

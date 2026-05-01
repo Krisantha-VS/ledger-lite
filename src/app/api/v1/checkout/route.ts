@@ -64,6 +64,7 @@ export async function GET(req: Request) {
         body: JSON.stringify({
           product_cart: [{ product_id: productId, quantity: 1 }],
           customer:     { email },
+          return_url:   `${process.env.NEXT_PUBLIC_APP_URL ?? ""}/dashboard`,
           metadata:     { intentId, traceId: intent.traceId },
         }),
         signal: controller.signal,
@@ -72,14 +73,14 @@ export async function GET(req: Request) {
       clearTimeout(timer)
       const msg = fetchErr?.name === "AbortError" ? "Dodo API timed out" : `Dodo fetch failed: ${fetchErr?.message}`
       log("error", "checkout.fetch_failed", { userId, msg })
-      return fail(msg, 502)
+      return fail(msg, 500)
     }
     clearTimeout(timer)
 
     const rawBody = await sessionRes.text()
     if (!sessionRes.ok) {
       log("error", "checkout.session_failed", { userId, status: sessionRes.status, body: rawBody.slice(0, 300) })
-      return fail(`Dodo error ${sessionRes.status}: ${rawBody.slice(0, 200)}`, 502)
+      return fail(`Dodo error ${sessionRes.status}: ${rawBody.slice(0, 200)}`, 500)
     }
 
     let session: any

@@ -4,20 +4,9 @@ import { useEffect, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { toast } from "sonner"
 import { authFetch } from "@/shared/lib/auth-client"
+import { DodoPayments } from "dodopayments-checkout"
 
-declare global {
-  interface Window {
-    DodoPayments?: {
-      Initialize: (config: { mode: string; displayType: string; onEvent?: (e: any) => void }) => void
-      Checkout: {
-        open: (config: { checkoutUrl: string; redirectUrl?: string }) => void
-      }
-    }
-  }
-}
-
-const DODO_MODE = process.env.NEXT_PUBLIC_DODO_MODE ?? "live"
-const APP_URL   = process.env.NEXT_PUBLIC_APP_URL   ?? ""
+const DODO_MODE = (process.env.NEXT_PUBLIC_DODO_MODE ?? "live") as "test" | "live"
 
 function CheckoutHandlerInner() {
   const searchParams = useSearchParams()
@@ -26,41 +15,17 @@ function CheckoutHandlerInner() {
   useEffect(() => {
     if (checkout !== "1") return
 
-    const ensureDodoScript = async () => {
-      if (window.DodoPayments) return
-      const existing = document.getElementById("ll-dodo-checkout-script")
-      if (existing) {
-        // Script already loading — wait for DodoPayments to appear
-        await new Promise<void>((resolve, reject) => {
-          let attempts = 0
-          const interval = setInterval(() => {
-            if (window.DodoPayments) { clearInterval(interval); resolve() }
-            if (++attempts > 20)    { clearInterval(interval); reject(new Error("Dodo SDK timed out")) }
-          }, 250)
-        })
-        return
-      }
-      await new Promise<void>((resolve, reject) => {
-        const script = document.createElement("script")
-        script.id    = "ll-dodo-checkout-script"
-        script.src   = "https://cdn.jsdelivr.net/npm/dodopayments-checkout@latest/dist/index.js"
-        script.async = true
-        script.onload = () => resolve()
-        script.onerror = () => reject(new Error("Failed to load Dodo checkout SDK"))
-        document.body.appendChild(script)
-      })
-    }
-
     const run = async () => {
       try {
         // Step 1: exchange cookie for intentId
         const intentRes  = await authFetch("/api/v1/checkout-intent")
         const intentJson = await intentRes.json()
-        if (!intentJson.success || !intentJson.data?.intentId) return
+        if (!intentJson.success || !intentJson.data?.intentId) {
+          if (!intentJson.success) toast.error("Could not start checkout. Please try again.")
+          return
+        }
 
         const { intentId } = intentJson.data
-
-        await ensureDodoScript()
 
         // Step 2: create Dodo checkout session → get checkoutUrl
         const res  = await authFetch(`/api/v1/checkout?intentId=${intentId}`)
@@ -70,22 +35,20 @@ function CheckoutHandlerInner() {
         const { checkoutUrl } = json.data
         if (!checkoutUrl) throw new Error("No checkout URL received")
 
-        if (!window.DodoPayments) throw new Error("Dodo SDK not ready")
-
-        window.DodoPayments.Initialize({
+        DodoPayments.Initialize({
           mode:        DODO_MODE,
           displayType: "overlay",
-          onEvent: (e: any) => {
-            if (e?.type === "checkout.error") {
+          onEvent: (e) => {
+            if (e?.event_type === "checkout.redirect") {
+              window.location.href = "/dashboard"
+            }
+            if (e?.event_type === "checkout.error") {
               toast.error("Payment error. Please try again.")
             }
           },
         })
 
-        window.DodoPayments.Checkout.open({
-          checkoutUrl,
-          redirectUrl: `${APP_URL}/dashboard`,
-        })
+        DodoPayments.Checkout.open({ checkoutUrl })
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err)
         console.error("[checkout]", msg)
