@@ -26,16 +26,23 @@ function verifySignature(
   }
   if (!sig || !webhookId || !webhookTs) return false
 
+  // Dodo uses Svix: secret is whsec_<base64>, signature is v1,<base64>
+  const secretBytes = secret.startsWith("whsec_")
+    ? Buffer.from(secret.slice(6), "base64")
+    : Buffer.from(secret)
+
   const signedContent = `${webhookId}.${webhookTs}.${rawBody}`
-  const expected = crypto.createHmac("sha256", secret).update(signedContent).digest("hex")
-  const expectedBuf = Buffer.from(expected)
+  const expectedB64 = crypto.createHmac("sha256", secretBytes).update(signedContent).digest("base64")
 
   // Header may carry space-separated multiple sigs (e.g. key rotation)
   const candidates = sig.split(" ").map(s => s.replace(/^v1,/, ""))
   return candidates.some(candidate => {
-    const buf = Buffer.from(candidate)
-    if (buf.length !== expectedBuf.length) return false
-    try { return crypto.timingSafeEqual(expectedBuf, buf) } catch { return false }
+    try {
+      const expectedBuf = Buffer.from(expectedB64, "base64")
+      const candidateBuf = Buffer.from(candidate, "base64")
+      if (expectedBuf.length !== candidateBuf.length) return false
+      return crypto.timingSafeEqual(expectedBuf, candidateBuf)
+    } catch { return false }
   })
 }
 
