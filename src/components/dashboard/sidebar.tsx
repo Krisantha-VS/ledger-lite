@@ -16,7 +16,7 @@ const NAV = [
   { href: "/import",       label: "Import",       icon: Upload },
   { href: "/accounts",     label: "Accounts",     icon: Wallet },
   { href: "/budgets",      label: "Budgets",      icon: PiggyBank },
-  { href: "/subscriptions",label: "Subscriptions",icon: Repeat2 },
+  { href: "/subscriptions",label: "Recurring",    icon: Repeat2 },
   { href: "/categories",   label: "Categories",   icon: Tag },
   { href: "/goals",        label: "Goals",        icon: Target },
   { href: "/reports",      label: "Reports",      icon: BarChart3 },
@@ -98,12 +98,13 @@ export function Sidebar() {
             </Link>
           </div>
         ) : (
-          <div className="flex items-center gap-2 px-1">
+          <Link href="/settings/billing" className="flex items-center gap-2 px-1 rounded-lg py-1.5 hover:bg-[hsl(var(--ll-accent)/0.08)] transition-colors group">
             <div className="h-1.5 w-1.5 rounded-full" style={{ background: "hsl(var(--ll-income))" }} />
-            <span className="text-xs capitalize" style={{ color: "hsl(var(--ll-text-muted))" }}>
+            <span className="text-xs capitalize flex-1" style={{ color: "hsl(var(--ll-text-muted))" }}>
               {billing.plan} plan
             </span>
-          </div>
+            <span className="text-[10px] opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: "hsl(var(--ll-accent))" }}>Manage</span>
+          </Link>
         )}
       </div>
     </aside>
