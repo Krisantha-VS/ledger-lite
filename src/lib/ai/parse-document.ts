@@ -4,10 +4,6 @@ import * as XLSX  from "xlsx";
 
 const getOpenAI   = () => new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const getAnthropic = () => new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const getDeepSeek  = () => new OpenAI({
-  apiKey:  process.env.DEEPSEEK_API_KEY,
-  baseURL: "https://api.deepseek.com/v1",
-});
 
 export interface AIParsedRow {
   date:           string;        // YYYY-MM-DD
@@ -347,26 +343,7 @@ export async function parseCSVWithAI(csvText: string): Promise<ParseResult> {
     }
   }
 
-  // Fallback: DeepSeek-V3
-  if (process.env.DEEPSEEK_API_KEY) {
-    try {
-      const res = await getDeepSeek().chat.completions.create({
-        model:       "deepseek-chat",
-        temperature: 0,
-        max_tokens:  MAX_COMPLETION_TOKENS,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user",   content: userMessage },
-        ],
-      });
-      const parsed = parseJSON(res.choices[0]?.message?.content ?? "{}");
-      return { ...parsed, provider: "deepseek", model: "deepseek-chat" };
-    } catch (err) {
-      console.error("[parse-document] DeepSeek failed:", err instanceof Error ? err.message : err);
-    }
-  }
-
-  throw new Error("No AI provider configured. Add OPENAI_API_KEY, ANTHROPIC_API_KEY, or DEEPSEEK_API_KEY.");
+  throw new Error("No AI provider configured. Add OPENAI_API_KEY or ANTHROPIC_API_KEY.");
 }
 
 // ─── PDF parse — extract text first, then use same LLM path as CSV ───────────
