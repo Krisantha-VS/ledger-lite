@@ -1,17 +1,13 @@
 import { ok, handleError, getUserId } from "@/lib/api";
-import { getSubscription } from "@/lib/subscriptions";
+import { getSubscription, getEntitlements } from "@/lib/subscriptions";
 
-/**
- * GET /api/v1/billing
- * returns the user's current billing subscription status.
- */
 export async function GET(req: Request) {
   try {
     const userId = await getUserId(req);
-    const sub = await getSubscription(userId);
+    const [sub, ent] = await Promise.all([getSubscription(userId), getEntitlements(userId)]);
 
     return ok({
-      plan: sub.plan,
+      plan: ent.plan,
       status: sub.status,
       billing: sub.billing,
       currentPeriodEnd: sub.currentPeriodEnd,
