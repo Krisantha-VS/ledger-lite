@@ -210,6 +210,7 @@ export function ImportView() {
   const [statementMeta, setStatementMeta]       = useState<StatementMeta | null>(null);
   const [smartCardCollapsed, setSmartCardCollapsed] = useState(false);
   const [excludeTransfers, setExcludeTransfers] = useState(true);
+  const [importInsights, setImportInsights] = useState<{ summary: string; highlights: { label: string; value: string }[]; flags: string[] } | null>(null);
 
   // Duplicate detection
   type RowWithDup = ParsedRow & { isDuplicate?: boolean };
@@ -318,6 +319,7 @@ export function ImportView() {
       setAiModel(json.data.model ?? "");
       setStatementMeta(json.data.meta ?? null);
       setSmartCardCollapsed(false);
+      if (json.data.insights) setImportInsights(json.data.insights);
       toast.success(`AI extracted ${rows.length} transactions`);
       await checkDuplicates(rows);
     } catch (err) {
@@ -507,6 +509,7 @@ export function ImportView() {
     setRowsWithDups([]); setCheckedRows(new Set());
     setRecurringSuggestions(new Map()); setRecurringOverrides(new Map());
     setAccountId(""); setCategoryId(""); setImportResult(null);
+    setImportInsights(null);
   };
 
   // ─── Render ───────────────────────────────────────────────────────────────
@@ -1094,19 +1097,50 @@ export function ImportView() {
         </div>
       )}
       {step === 3 && importResult && (
-        <div className="ll-card p-8">
-          <div className="flex flex-col items-center gap-4 text-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl" style={{ background: "hsl(var(--ll-income) / 0.12)" }}>
-              <Check className="h-7 w-7" style={{ color: "hsl(var(--ll-income))" }} />
+        <div className="space-y-4">
+          <div className="ll-card p-6">
+            <div className="flex flex-col items-center gap-3 text-center">
+              <div className="flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: "hsl(var(--ll-income) / 0.12)" }}>
+                <Check className="h-6 w-6" style={{ color: "hsl(var(--ll-income))" }} />
+              </div>
+              <div>
+                <p className="text-base font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>Import complete</p>
+                <p className="mt-1 text-sm" style={{ color: "hsl(var(--ll-text-secondary))" }}>
+                  <span className="font-semibold" style={{ color: "hsl(var(--ll-income))" }}>{importResult.imported}</span> transaction{importResult.imported !== 1 ? "s" : ""} imported
+                  {importResult.skipped > 0 && <> &middot; <span className="font-semibold" style={{ color: "hsl(var(--ll-text-muted))" }}>{importResult.skipped}</span> skipped</>}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-base font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>Import complete</p>
-              <p className="mt-1 text-sm" style={{ color: "hsl(var(--ll-text-secondary))" }}>
-                Successfully imported <span className="font-semibold" style={{ color: "hsl(var(--ll-income))" }}>{importResult.imported}</span> transaction{importResult.imported !== 1 ? "s" : ""}
-                {importResult.skipped > 0 && <> &middot; <span className="font-semibold" style={{ color: "hsl(var(--ll-text-muted))" }}>{importResult.skipped}</span> skipped</>}
-              </p>
-            </div>
-            <div className="flex gap-3 w-full">
+
+            {/* F2: AI insight card */}
+            {importInsights && (
+              <div className="mt-4 rounded-xl p-4 space-y-3" style={{ background: "hsl(var(--ll-bg-elevated))", border: "1px solid hsl(var(--ll-border))" }}>
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="h-3.5 w-3.5" style={{ color: "hsl(var(--ll-accent))" }} />
+                  <span className="text-xs font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>Statement Summary</span>
+                </div>
+                <div className="divide-y" style={{ borderColor: "hsl(var(--ll-border) / 0.6)" }}>
+                  {importInsights.highlights.map(h => (
+                    <div key={h.label} className="flex justify-between py-1.5 text-xs">
+                      <span style={{ color: "hsl(var(--ll-text-muted))" }}>{h.label}</span>
+                      <span className="font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>{h.value}</span>
+                    </div>
+                  ))}
+                </div>
+                {importInsights.summary && (
+                  <p className="text-xs italic" style={{ color: "hsl(var(--ll-text-secondary))" }}>&ldquo;{importInsights.summary}&rdquo;</p>
+                )}
+                {importInsights.flags.length > 0 && (
+                  <ul className="space-y-0.5">
+                    {importInsights.flags.map(f => (
+                      <li key={f} className="text-[11px]" style={{ color: "hsl(var(--ll-accent))" }}>✦ {f}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
+            <div className="mt-4 flex gap-3">
               <button onClick={reset} className="flex-1 rounded-lg py-2 text-sm font-medium text-white transition-colors" style={{ background: "hsl(var(--ll-accent))" }}>
                 Import another file
               </button>
