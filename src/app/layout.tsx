@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Providers } from "@/components/providers";
 import { SwRegister } from "@/components/sw-register";
-import Script from "next/script";
 import "./globals.css";
 
 const inter = Inter({
@@ -27,13 +26,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={inter.variable} suppressHydrationWarning>
-      <body className="font-[family-name:var(--font-inter)] antialiased">
+      <body className="font-[family-name:var(--font-inter)] antialiased" suppressHydrationWarning>
         <Providers>{children}</Providers>
         <SwRegister />
-        <Script
-          src="https://js.dodopayments.com/v1/checkout.js"
-          strategy="afterInteractive"
-        />
       </body>
     </html>
   );

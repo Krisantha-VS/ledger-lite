@@ -1,6 +1,7 @@
 import { db } from "@/lib/db";
 import { ok, fail, handleError, getUserId } from "@/lib/api";
 import { z } from "zod";
+import { getEntitlements } from "@/lib/subscriptions";
 
 const CreateSchema = z.object({
   name:         z.string().min(1).max(100),
@@ -66,6 +67,11 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const userId = await getUserId(req);
+    const ent = await getEntitlements(userId)
+    const goalCount = await db.goal.count({ where: { userId, isCompleted: false } })
+    if (goalCount >= ent.maxGoals) {
+      return fail("Goal limit reached for your plan. Upgrade to add more goals.", 403)
+    }
     const body   = CreateSchema.parse(await req.json());
 
     if (body.accountId) {

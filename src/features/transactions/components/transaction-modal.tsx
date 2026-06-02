@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { Sparkles, X } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import { useAccounts } from "@/features/accounts/hooks/useAccounts";
 import { accountTypeLabel } from "@/lib/account-types";
 import { useCategories } from "@/features/categories/hooks/useCategories";
+import { authFetch } from "@/shared/lib/auth-client";
 import type { Transaction } from "@/shared/types";
 
 const schema = z.object({
@@ -40,7 +42,7 @@ export function TransactionModal({ open, onClose, onSave, initial }: Props) {
   const { accounts }   = useAccounts();
   const { categories } = useCategories();
 
-  const { register, handleSubmit, reset, watch, formState: { errors, isSubmitting } } = useForm<FormData>({
+  const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
       type:        "expense",
@@ -52,6 +54,35 @@ export function TransactionModal({ open, onClose, onSave, initial }: Props) {
   const type        = watch("type");
   const accountId   = watch("accountId");
   const isRecurring = watch("isRecurring");
+  const note        = watch("note");
+
+  // F1 — AI category suggest
+  const [suggestedCatId, setSuggestedCatId]   = useState<number | null>(null);
+  const [suggestConfidence, setSuggestConfidence] = useState(0);
+  const [suggestDismissed, setSuggestDismissed]   = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    setSuggestedCatId(null);
+    setSuggestDismissed(false);
+    if (!note || note.length < 3) return;
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(async () => {
+      try {
+        const res  = await authFetch("/api/v1/ai/suggest-category", {
+          method: "POST",
+          body:   JSON.stringify({ note, categories: filteredCats.map(c => ({ id: c.id, name: c.name, type: c.type })) }),
+        });
+        const json = await res.json();
+        if (json.success && json.data.categoryId && json.data.confidence >= 0.6) {
+          setSuggestedCatId(json.data.categoryId);
+          setSuggestConfidence(json.data.confidence);
+        }
+      } catch { /* silent */ }
+    }, 400);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [note, type]);
 
   const filteredCats = categories.filter(c =>
     type === "income"  ? c.type !== "expense" :
@@ -59,7 +90,7 @@ export function TransactionModal({ open, onClose, onSave, initial }: Props) {
   );
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) { setSuggestedCatId(null); setSuggestDismissed(false); return; }
     if (initial) {
       // Pre-populate with existing transaction values
       reset({
@@ -148,6 +179,32 @@ export function TransactionModal({ open, onClose, onSave, initial }: Props) {
           <select className="ll-input" aria-label="Category" {...register("categoryId", { valueAsNumber: true })}>
             {filteredCats.map(c => <option key={c.id} value={c.id}>{isEmojiIcon(c.icon) ? `${c.icon} ` : ""}{c.name}</option>)}
           </select>
+          {/* F1: AI category suggest pill */}
+          {suggestedCatId && !suggestDismissed && (() => {
+            const sugCat = filteredCats.find(c => c.id === suggestedCatId);
+            if (!sugCat) return null;
+            return (
+              <div className="mt-1.5 flex items-center gap-2">
+                <div className="flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium" style={{ background: "hsl(var(--ll-accent) / 0.08)", border: "1px solid hsl(var(--ll-accent) / 0.2)", color: "hsl(var(--ll-accent))" }}>
+                  <Sparkles className="h-3 w-3" />
+                  <span>Suggested: {sugCat.name}</span>
+                  <button
+                    type="button"
+                    onClick={() => { setValue("categoryId", suggestedCatId); setSuggestDismissed(true); }}
+                    className="ml-1 font-semibold opacity-80 hover:opacity-100"
+                  >Apply</button>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSuggestDismissed(true)}
+                  className="opacity-50 hover:opacity-100"
+                  aria-label="Dismiss suggestion"
+                >
+                  <X className="h-3 w-3" style={{ color: "hsl(var(--ll-text-muted))" }} />
+                </button>
+              </div>
+            );
+          })()}
           {errors.categoryId && <p className="mt-0.5 text-xs" style={{ color: "hsl(var(--ll-expense))" }}>{errors.categoryId.message}</p>}
         </div>
 

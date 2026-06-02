@@ -4,6 +4,7 @@ import { useState } from "react";
 import { CheckCircle2, Trash2, Pencil } from "lucide-react";
 import { formatCurrency, formatDate } from "@/shared/lib/formatters";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { GoalCoachingMessage } from "./goal-coaching-message";
 import type { Goal } from "@/shared/types";
 
 export function GoalCard({
@@ -105,6 +106,8 @@ export function GoalCard({
             )}
           </p>
         )}
+        {/* F5: AI goal coaching message (only shown for paid plans — component self-silences on 403) */}
+        {!goal.isCompleted && <GoalCoachingMessage goalId={goal.id} />}
       </div>
     </div>
   );

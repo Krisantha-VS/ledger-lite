@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { motion, AnimatePresence } from "framer-motion";
+import { useTheme } from "next-themes";
 
 const LIGHT = [
   { src: "/screenshots/light-dashboard.png",    label: "Dashboard",    desc: "KPIs, cash flow & projections" },
@@ -24,10 +25,12 @@ const DARK = [
 
 // Dynamically compute fan layout for any number of screens
 function fanLayout(count: number) {
-  const spread = count <= 5 ? 6 : 7.5; // total angle spread per side
+  // Wider cards make the UI inside each screenshot easier to read.
+  // We also slightly increase the spread for 6 screens to reduce overlap.
+  const spread = count <= 5 ? 6.5 : 9.0; // total angle spread per side
   const step   = (spread * 2) / (count - 1);
-  const maxW   = count <= 5 ? 176 : 160;
-  const minW   = count <= 5 ? 144 : 132;
+  const maxW   = count <= 5 ? 200 : 210;
+  const minW   = count <= 5 ? 162 : 170;
 
   return Array.from({ length: count }, (_, i) => {
     const mid     = (count - 1) / 2;
@@ -41,7 +44,60 @@ function fanLayout(count: number) {
 }
 
 export function Screenshots() {
-  const [mode, setMode] = useState<"light" | "dark">("light");
+  const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  // Avoid hydration mismatches from theme resolution + motion initial styles.
+  // We render a stable, non-animated placeholder until mounted.
+  if (!mounted) {
+    return (
+      <section className="border-t overflow-hidden" style={{ borderColor: "var(--land-border)" }}>
+        <div className="mx-auto max-w-7xl px-6 py-16 lg:px-8 lg:py-24">
+          <div className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <div className="mb-4 flex items-center gap-3">
+                <span className="font-mono text-[11px] font-bold" style={{ color: "hsl(var(--ll-accent))" }}>03</span>
+                <span className="font-mono text-[11px]" style={{ color: "var(--land-muted)" }}>— IN USE</span>
+              </div>
+              <div className="mb-6 h-px w-72" style={{ background: "var(--land-rule)" }} />
+              <h2 className="text-3xl font-bold leading-tight tracking-tight lg:text-4xl" style={{ color: "var(--land-text)" }}>
+                Clean on every screen.
+                <br />
+                <span style={{ color: "var(--land-muted)" }}>Light or dark.</span>
+              </h2>
+            </div>
+          </div>
+
+          <div className="flex items-end justify-center" style={{ minHeight: "460px" }}>
+            <div
+              className="relative overflow-hidden"
+              style={{
+                borderRadius: "22px",
+                width: "210px",
+                border: "1px solid var(--land-border)",
+                boxShadow: "var(--land-shadow)",
+              }}
+            >
+              <Image
+                src="/screenshots/light-dashboard.png"
+                alt="Dashboard"
+                width={375}
+                height={812}
+                style={{ width: "100%", height: "auto", display: "block" }}
+                priority
+              />
+            </div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const mode: "light" | "dark" = resolvedTheme === "dark" ? "dark" : "light";
   const screens = mode === "light" ? LIGHT : DARK;
   const layout = fanLayout(screens.length);
 
@@ -63,31 +119,11 @@ export function Screenshots() {
               <span style={{ color: "var(--land-muted)" }}>Light or dark.</span>
             </h2>
           </div>
-
-          {/* Mode toggle */}
-          <div
-            className="flex self-start items-center gap-1 rounded-lg p-1 lg:self-auto"
-            style={{ background: "var(--land-card)", border: "1px solid var(--land-border)" }}
-          >
-            {(["light", "dark"] as const).map((m) => (
-              <button
-                key={m}
-                onClick={() => setMode(m)}
-                className="flex items-center gap-2 rounded-md px-4 py-2 text-xs font-semibold capitalize transition-all"
-                style={{
-                  background: mode === m ? "hsl(var(--ll-accent))" : "transparent",
-                  color:      mode === m ? "#ffffff" : "var(--land-muted)",
-                }}
-              >
-                {m}
-              </button>
-            ))}
-          </div>
         </div>
 
         {/* ── 5-phone fan (desktop) ── */}
         <div className="hidden lg:flex items-end justify-center gap-2" style={{ minHeight: "460px" }}>
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="sync">
             {screens.map((screen, i) => (
               <motion.div
                 key={mode + screen.src}
@@ -101,7 +137,7 @@ export function Screenshots() {
                 <div
                   className="relative overflow-hidden"
                   style={{
-                    borderRadius: "20px",
+                    borderRadius: "22px",
                     width: `${layout[i].width}px`,
                     border: "1px solid var(--land-border)",
                     boxShadow: "var(--land-shadow)",
@@ -120,8 +156,13 @@ export function Screenshots() {
                   className="text-center"
                   style={{ transform: `rotate(calc(-1 * ${layout[i].deg}))` }}
                 >
-                  <div className="text-[11px] font-semibold" style={{ color: "var(--land-text)" }}>{screen.label}</div>
-                  <div className="mt-0.5 text-[9px]" style={{ color: "var(--land-dim)", maxWidth: "110px" }}>{screen.desc}</div>
+                  <div className="text-[13px] leading-snug font-semibold" style={{ color: "var(--land-text)" }}>{screen.label}</div>
+                  <div
+                    className="mt-0.5 text-[10px] leading-snug"
+                    style={{ color: "var(--land-muted)", maxWidth: "140px" }}
+                  >
+                    {screen.desc}
+                  </div>
                 </div>
               </motion.div>
             ))}
@@ -130,7 +171,7 @@ export function Screenshots() {
 
         {/* ── Mobile: horizontal scroll strip ── */}
         <div className="flex lg:hidden gap-4 overflow-x-auto pb-4" style={{ scrollbarWidth: "none" }}>
-          <AnimatePresence mode="wait">
+          <AnimatePresence mode="sync">
             {screens.map((screen, i) => (
               <motion.div
                 key={mode + screen.src + "-mob"}
@@ -144,7 +185,7 @@ export function Screenshots() {
                   className="relative overflow-hidden"
                   style={{
                     borderRadius: "18px",
-                    width: "140px",
+                    width: "160px",
                     border: "1px solid var(--land-border)",
                     boxShadow: "var(--land-shadow)",
                   }}
@@ -157,7 +198,7 @@ export function Screenshots() {
                     style={{ width: "100%", height: "auto", display: "block" }}
                   />
                 </div>
-                <div className="text-[10px] font-semibold" style={{ color: "var(--land-text)" }}>{screen.label}</div>
+                <div className="text-[12px] leading-snug font-semibold" style={{ color: "var(--land-text)" }}>{screen.label}</div>
               </motion.div>
             ))}
           </AnimatePresence>
@@ -166,7 +207,7 @@ export function Screenshots() {
         {/* Screen count strip */}
         <div className="mt-12 flex items-center justify-center gap-4">
           <div className="h-px flex-1" style={{ background: "var(--land-rule)", maxWidth: "180px" }} />
-          <span className="font-mono text-[10px] uppercase tracking-widest" style={{ color: "var(--land-dim)" }}>
+          <span className="font-mono text-[11px] uppercase tracking-widest" style={{ color: "var(--land-muted)" }}>
             {mode} mode · {screens.length} screens
           </span>
           <div className="h-px flex-1" style={{ background: "var(--land-rule)", maxWidth: "180px" }} />

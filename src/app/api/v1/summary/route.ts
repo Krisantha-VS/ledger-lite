@@ -77,7 +77,7 @@ async function dashboardSummary(userId: string) {
     AND (SELECT COALESCE(SUM(t.amount),0) FROM "Transaction" t
          WHERE t."categoryId"=b."categoryId" AND t."userId"=${userId}
            AND t.type='expense' AND t.date BETWEEN ${start} AND ${end}
-        ) > (b.amount + COALESCE(b."rolloverAmount", 0))
+        ) > b.amount
   `;
 
   return {

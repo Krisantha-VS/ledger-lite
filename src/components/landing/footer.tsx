@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { BrandMark } from "@/components/ui/brand-mark";
 
 export function LandingFooter() {
@@ -22,6 +23,9 @@ export function LandingFooter() {
                 {label}
               </a>
             ))}
+            <Link href="/changelog" className="text-xs transition-colors hover:opacity-80" style={{ color: "var(--land-dim)" }}>
+              Changelog
+            </Link>
           </div>
         </div>
       </div>

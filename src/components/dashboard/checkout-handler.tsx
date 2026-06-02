@@ -1,64 +1,65 @@
-"use client";
+"use client"
 
-import { useEffect, Suspense } from "react";
-import { useSearchParams } from "next/navigation";
-import { toast } from "sonner";
-import { authFetch } from "@/shared/lib/auth-client";
+import { useEffect, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
+import { toast } from "sonner"
+import { authFetch } from "@/shared/lib/auth-client"
+import { DodoPayments } from "dodopayments-checkout"
 
-declare global {
-  interface Window {
-    DodoPayments?: {
-      onCheckout: (config: any) => void;
-    };
-  }
-}
+const DODO_MODE = (process.env.NEXT_PUBLIC_DODO_MODE ?? "live") as "test" | "live"
 
 function CheckoutHandlerInner() {
-  const searchParams = useSearchParams();
-  const checkout = searchParams.get("checkout");
+  const searchParams = useSearchParams()
+  const checkout = searchParams.get("checkout")
 
   useEffect(() => {
-    if (checkout === "1") {
-      const run = async () => {
-        try {
-          const res = await authFetch("/api/v1/checkout");
-          const json = await res.json();
-          if (!json.success) throw new Error(json.error);
+    if (checkout !== "1") return
 
-          const { productId, metadata, customer } = json.data;
-
-          if (window.DodoPayments) {
-            window.DodoPayments.onCheckout({
-              productId,
-              quantity: 1,
-              metadata,
-              customer,
-            });
-          } else {
-            // If script not loaded yet, wait a bit
-            setTimeout(() => {
-              if (window.DodoPayments) {
-                window.DodoPayments.onCheckout({
-                  productId,
-                  quantity: 1,
-                  metadata,
-                  customer,
-                });
-              } else {
-                toast.error("Payment system is still loading. Please try again in a moment.");
-              }
-            }, 1000);
-          }
-        } catch (err) {
-          console.error("[checkout]", err);
-          toast.error("Could not start checkout. Please try again from settings.");
+    const run = async () => {
+      try {
+        // Step 1: exchange cookie for intentId
+        const intentRes  = await authFetch("/api/v1/checkout-intent")
+        const intentJson = await intentRes.json()
+        if (!intentJson.success || !intentJson.data?.intentId) {
+          if (!intentJson.success) toast.error("Could not start checkout. Please try again.")
+          return
         }
-      };
-      run();
-    }
-  }, [checkout]);
 
-  return null;
+        const { intentId } = intentJson.data
+
+        // Step 2: create Dodo checkout session → get checkoutUrl
+        const res  = await authFetch(`/api/v1/checkout?intentId=${intentId}`)
+        const json = await res.json()
+        if (!json.success) throw new Error(json.error ?? "Checkout session failed")
+
+        const { checkoutUrl } = json.data
+        if (!checkoutUrl) throw new Error("No checkout URL received")
+
+        DodoPayments.Initialize({
+          mode:        DODO_MODE,
+          displayType: "overlay",
+          onEvent: (e) => {
+            if (e?.event_type === "checkout.redirect") {
+              window.location.href = "/dashboard"
+            }
+            if (e?.event_type === "checkout.error") {
+              toast.error("Payment error. Please try again.")
+            }
+          },
+        })
+
+        DodoPayments.Checkout.open({ checkoutUrl })
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err)
+        console.error("[checkout]", msg)
+        toast.error(`Checkout error: ${msg}`)
+      }
+    }
+
+    run()
+  }, [checkout])
+
+  return null
 }
 
 export function CheckoutHandler() {
@@ -66,5 +67,5 @@ export function CheckoutHandler() {
     <Suspense fallback={null}>
       <CheckoutHandlerInner />
     </Suspense>
-  );
+  )
 }

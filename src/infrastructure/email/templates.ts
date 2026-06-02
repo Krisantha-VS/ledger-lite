@@ -211,6 +211,147 @@ export function largeExpenseEmail({ amount, currency, categoryName, note }: Larg
   return { subject, html }
 }
 
+// ── 5. Payment receipt ────────────────────────────────────────────────────────
+
+export interface ReceiptEmailParams {
+  userName: string
+  plan: string
+  billingCadence: string
+  receiptNumber: string
+  receiptDate: string
+  amount: string
+  taxAmount: string
+  totalAmount: string
+  currency: string
+  periodStart: string
+  periodEnd: string
+  dodoSubId: string
+  invoiceUrl?: string | null
+}
+
+export function receiptEmail(p: ReceiptEmailParams): { subject: string; html: string } {
+  const subject = `Your LedgerLite receipt — ${p.plan} plan`
+  const html = wrap(`
+    <p style="margin:0 0 4px;font-size:22px;font-weight:700;color:#111827;">Payment Confirmed</p>
+    <p style="margin:0 0 20px;font-size:14px;color:#6b7280;">Hi ${p.userName}, your payment was successful. Here's your receipt.</p>
+
+    <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:16px 20px;margin-bottom:20px;">
+      <p style="margin:0 0 2px;font-size:12px;color:#7c3aed;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;">Receipt No.</p>
+      <p style="margin:0;font-size:16px;font-weight:700;color:#111827;">${p.receiptNumber}</p>
+    </div>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+      ${stat('Date', p.receiptDate)}
+      ${stat('Plan', `${p.plan} (${p.billingCadence})`)}
+      ${stat('Amount', `${p.currency} ${p.amount}`)}
+      ${stat('Tax (via Dodo Payments)', `${p.currency} ${p.taxAmount}`)}
+    </table>
+
+    <div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:12px 20px;margin-bottom:20px;display:flex;justify-content:space-between;">
+      <span style="font-size:15px;font-weight:700;color:#111827;">Total</span>
+      <span style="font-size:15px;font-weight:700;color:#111827;">${p.currency} ${p.totalAmount}</span>
+    </div>
+
+    <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:20px;">
+      ${stat('Coverage', `${p.periodStart} → ${p.periodEnd}`)}
+      ${stat('Subscription ID', `<span style="font-family:monospace;font-size:12px;">${p.dodoSubId}</span>`)}
+    </table>
+
+    ${p.invoiceUrl ? `<p style="margin:0 0 20px;"><a href="${p.invoiceUrl}" style="color:#7c3aed;font-weight:600;font-size:14px;">View full invoice →</a></p>` : ''}
+
+    <p style="margin:20px 0 0;font-size:12px;color:#9ca3af;">
+      Payments processed by Dodo Payments. Taxes calculated and remitted by Dodo Payments on behalf of LedgerLite.
+    </p>
+  `)
+  return { subject, html }
+}
+
+// ── 6. Payment failed ─────────────────────────────────────────────────────────
+
+export function paymentFailedEmail(userName: string, daysSinceFailed: 0 | 3): { subject: string; html: string } {
+  const isReminder = daysSinceFailed === 3
+  const subject = isReminder
+    ? "Still having trouble — update your LedgerLite payment method"
+    : "Your LedgerLite payment failed"
+
+  const html = wrap(`
+    <p style="margin:0 0 4px;font-size:22px;font-weight:700;color:#111827;">
+      ${isReminder ? "Payment Still Failing" : "Payment Failed"}
+    </p>
+    <p style="margin:0 0 20px;font-size:14px;color:#6b7280;">
+      Hi ${userName}, we ${isReminder ? "still " : ""}couldn't process your LedgerLite subscription payment.
+    </p>
+
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px 20px;margin-bottom:20px;">
+      <p style="margin:0;font-size:14px;color:#dc2626;">
+        ${isReminder
+          ? "Your account will be restricted in a few days if payment isn't resolved."
+          : "Your access is still active — you have a short grace period to update your details."}
+      </p>
+    </div>
+
+    <p style="margin:0 0 20px;font-size:14px;color:#374151;">
+      Please update your payment method via Dodo Payments to keep your LedgerLite subscription active.
+    </p>
+
+    <p style="margin:20px 0 0;font-size:13px;color:#6b7280;">
+      If you need help, reply to this email.
+    </p>
+  `)
+  return { subject, html }
+}
+
+// ── 7. Access restricted ──────────────────────────────────────────────────────
+
+export function accessRestrictedEmail(userName: string): { subject: string; html: string } {
+  const subject = "Your LedgerLite access has been restricted"
+  const html = wrap(`
+    <p style="margin:0 0 4px;font-size:22px;font-weight:700;color:#111827;">Access Restricted</p>
+    <p style="margin:0 0 20px;font-size:14px;color:#6b7280;">
+      Hi ${userName}, your LedgerLite subscription payment couldn't be collected and your account has been moved to the Free plan.
+    </p>
+
+    <div style="background:#fef2f2;border:1px solid #fecaca;border-radius:8px;padding:16px 20px;margin-bottom:20px;">
+      <p style="margin:0;font-size:14px;color:#dc2626;font-weight:600;">Your data is safe — nothing has been deleted.</p>
+    </div>
+
+    <p style="margin:0 0 20px;font-size:14px;color:#374151;">
+      To restore full access, resubscribe from your LedgerLite billing settings. Your previous data will be available immediately.
+    </p>
+
+    <p style="margin:20px 0 0;font-size:13px;color:#6b7280;">
+      Need help? Reply to this email and we'll sort it out.
+    </p>
+  `)
+  return { subject, html }
+}
+
+// ── 8. Subscription cancelled ─────────────────────────────────────────────────
+
+export function subscriptionCancelledEmail(userName: string, accessUntil: string): { subject: string; html: string } {
+  const subject = "Your LedgerLite subscription has been cancelled"
+  const html = wrap(`
+    <p style="margin:0 0 4px;font-size:22px;font-weight:700;color:#111827;">Subscription Cancelled</p>
+    <p style="margin:0 0 20px;font-size:14px;color:#6b7280;">
+      Hi ${userName}, your LedgerLite subscription has been cancelled as requested.
+    </p>
+
+    <div style="background:#f5f3ff;border:1px solid #ddd6fe;border-radius:8px;padding:16px 20px;margin-bottom:20px;">
+      <p style="margin:0 0 4px;font-size:13px;color:#7c3aed;font-weight:600;">Access until</p>
+      <p style="margin:0;font-size:18px;font-weight:700;color:#111827;">${accessUntil}</p>
+    </div>
+
+    <p style="margin:0 0 20px;font-size:14px;color:#374151;">
+      Your data is safe. After this date your account moves to the Free plan — you can resubscribe anytime.
+    </p>
+
+    <p style="margin:20px 0 0;font-size:13px;color:#6b7280;">
+      We're sorry to see you go. If there's anything we could have done better, we'd love to hear from you.
+    </p>
+  `)
+  return { subject, html }
+}
+
 // ── Convenience re-exports ─────────────────────────────────────────────────────
 
 export { sendMail }

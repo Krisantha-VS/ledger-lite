@@ -1,6 +1,8 @@
 import { ok, fail, handleError, getUserId } from "@/lib/api";
 import { parseDocument } from "@/lib/ai/parse-document";
-import { canUseAI } from "@/lib/subscriptions";
+import { checkAndIncrementAiImport, getEntitlements } from "@/lib/subscriptions";
+import { callAI, parseAIJson } from "@/lib/ai/suggestions";
+import { IMPORT_SUMMARY_SYSTEM } from "@/lib/ai/prompts/import-summary";
 
 export const maxDuration = 60; // allow up to 60s for LLM parsing
 
@@ -8,8 +10,14 @@ export async function POST(req: Request) {
   try {
     const userId = await getUserId(req);
 
-    if (!(await canUseAI(userId))) {
-      return fail("AI Import is a premium feature. Upgrade to Lite or Pro to use AI statement parsing.", 403);
+    const { allowed, remaining } = await checkAndIncrementAiImport(userId)
+    if (!allowed) {
+      return fail(
+        remaining === 0 && (await getEntitlements(userId)).plan === "free"
+          ? "AI Import requires a paid plan. Upgrade to Lite or Pro."
+          : "Monthly AI import limit reached. Upgrade to Pro for unlimited imports.",
+        403
+      )
     }
 
     const hasAI = process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY || process.env.DEEPSEEK_API_KEY;
@@ -51,6 +59,23 @@ export async function POST(req: Request) {
     // Zero-disk-write: file lives in memory, never touches disk
     const result = await parseDocument(file);
 
+    // Generate post-import insight card (best-effort — never blocks import)
+    let insights: { summary: string; highlights: { label: string; value: string }[]; flags: string[] } | null = null;
+    try {
+      if (result.transactions.length >= 5 && (process.env.OPENAI_API_KEY || process.env.ANTHROPIC_API_KEY)) {
+        const top5 = [...result.transactions]
+          .sort((a, b) => b.amount - a.amount)
+          .slice(0, 40)
+          .map(t => ({ date: t.date, desc: t.description, amount: t.amount, type: t.type, cat: t.categoryName }));
+        const period = result.meta?.statementFrom && result.meta?.statementTo
+          ? `${result.meta.statementFrom} to ${result.meta.statementTo}`
+          : "this statement";
+        const user = `Statement period: ${period}\nTotal transactions: ${result.transactions.length}\nTransactions (sample):\n${JSON.stringify(top5, null, 2)}`;
+        const content = await callAI({ system: IMPORT_SUMMARY_SYSTEM, user, maxTokens: 512 });
+        insights = parseAIJson(content, null);
+      }
+    } catch { /* insights are optional */ }
+
     return ok({
       transactions: result.transactions,
       meta:         result.meta,
@@ -58,6 +83,7 @@ export async function POST(req: Request) {
       model:        result.model,
       rawCount:     result.rawCount,
       parsed:       result.transactions.length,
+      insights,
     });
   } catch (e) {
     console.error("[import/ai]", e);

@@ -5,7 +5,8 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useTheme } from "next-themes";
-import { Settings, Download, Trash2 } from "lucide-react";
+import { Settings, Download, Trash2, CreditCard, Sparkles, ChevronRight } from "lucide-react";
+import Link from "next/link";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useSettings } from "@/features/settings/hooks/useSettings";
@@ -48,6 +49,9 @@ export function SettingsView() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
 
+  const [billing, setBilling] = useState<{ plan: string, isTrial: boolean, trialEndsAt: string } | null>(null);
+  const [loadingBilling, setLoadingBilling] = useState(true);
+
   const { register, handleSubmit, reset, formState: { isDirty } } = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { currency: "USD", locale: "en-US", theme: "system" },
@@ -55,6 +59,14 @@ export function SettingsView() {
 
   useEffect(() => {
     if (settings) reset({ currency: settings.currency, locale: settings.locale, theme: settings.theme });
+
+    authFetch("/api/v1/billing")
+      .then(res => res.json())
+      .then(json => {
+        if (json.success) setBilling(json.data);
+      })
+      .catch(() => {})
+      .finally(() => setLoadingBilling(false));
   }, [settings, reset]);
 
   const onSubmit = async (data: FormData) => {
@@ -100,6 +112,38 @@ export function SettingsView() {
           <h1 className="text-lg font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>Settings</h1>
           <p className="text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>Preferences and data export</p>
         </div>
+      </div>
+
+      {/* Billing */}
+      <div className="ll-card p-5">
+        <div className="flex items-center gap-2 mb-4">
+          <CreditCard className="h-4 w-4" style={{ color: "hsl(var(--ll-accent))" }} />
+          <h2 className="text-sm font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>Subscription</h2>
+        </div>
+
+        {loadingBilling ? (
+          <Skeleton className="h-16 rounded-lg" />
+        ) : (
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium capitalize" style={{ color: "hsl(var(--ll-text-primary))" }}>
+                {billing?.plan ?? "Free"} Plan
+              </p>
+              <p className="text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>
+                {billing?.plan === "free" || !billing?.plan ? "Limited features" : "Full access active"}
+              </p>
+            </div>
+            <Link href="/settings/billing"
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-opacity hover:opacity-90"
+              style={billing?.plan === "free" || !billing?.plan
+                ? { background: "hsl(var(--ll-accent))", color: "#fff" }
+                : { color: "hsl(var(--ll-text-secondary))", border: "1px solid hsl(var(--ll-border))" }}>
+              {billing?.plan === "free" || !billing?.plan
+                ? <><Sparkles className="h-3 w-3" /> Upgrade</>
+                : <><CreditCard className="h-3 w-3" /> Manage billing <ChevronRight className="h-3 w-3" /></>}
+            </Link>
+          </div>
+        )}
       </div>
 
       {/* Preferences */}

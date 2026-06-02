@@ -14,6 +14,7 @@ import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency } from "@/shared/lib/formatters";
+import { BudgetSuggestions } from "./budget-suggestions";
 
 const schema = z.object({
   categoryId: z.number().int().positive("Select a category"),
@@ -58,6 +59,13 @@ export function BudgetsView() {
           New Budget
         </Button>
       </div>
+
+      {/* F3: AI budget suggestions */}
+      <BudgetSuggestions
+        onAccept={async (categoryId, amount) => {
+          await upsertBudget({ categoryId, amount, rollover: false });
+        }}
+      />
 
       {/* QW3: Summary stats bar */}
       {!loading && budgets.length > 0 && (() => {

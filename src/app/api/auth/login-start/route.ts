@@ -30,12 +30,13 @@ export async function GET(req: NextRequest) {
   const res = NextResponse.redirect(url.toString());
   const isProduction = process.env.NODE_ENV === "production";
   const cookieBase = `Path=/; HttpOnly; SameSite=Lax; Max-Age=300${isProduction ? "; Secure" : ""}`;
-  
+
   res.headers.append("Set-Cookie", `ll_oauth_verifier=${verifier}; ${cookieBase}`);
   res.headers.append("Set-Cookie", `ll_oauth_state=${state}; ${cookieBase}`);
 
   if (plan) {
-    const checkoutData = JSON.stringify({ plan, billing, founding: founding === "true" });
+    const traceId = crypto.randomUUID();
+    const checkoutData = JSON.stringify({ plan, billing, founding: founding === "true", traceId });
     res.headers.append("Set-Cookie", `ll_pending_checkout=${encodeURIComponent(checkoutData)}; ${cookieBase}`);
   }
 

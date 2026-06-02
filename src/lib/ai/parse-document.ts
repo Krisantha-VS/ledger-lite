@@ -4,10 +4,6 @@ import * as XLSX  from "xlsx";
 
 const getOpenAI   = () => new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 const getAnthropic = () => new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-const getDeepSeek  = () => new OpenAI({
-  apiKey:  process.env.DEEPSEEK_API_KEY,
-  baseURL: "https://api.deepseek.com/v1",
-});
 
 export interface AIParsedRow {
   date:           string;        // YYYY-MM-DD
@@ -33,6 +29,27 @@ export interface StatementMeta {
   totalDebits:              number | null;  // sum of all debits per statement summary
   totalCredits:             number | null;  // sum of all credits per statement summary
   statementTransactionCount: number | null; // total count printed on statement
+
+  /** Credit / revolving — only when statement shows these; else null */
+  creditLimit:               number | null;
+  availableCredit:           number | null;
+  minimumPaymentDue:         number | null;
+  minimumPaymentDueDate:     string | null; // YYYY-MM-DD
+  paymentDueDate:            string | null; // YYYY-MM-DD
+  aprAnnualPercent:          number | null;
+  totalPurchasesAndCharges:  number | null;
+  totalPaymentsAndCredits:   number | null;
+  totalFeesCharged:          number | null;
+  totalInterestCharged:      number | null;
+  outstandingBalance:        number | null; // printed current / revolving total if distinct from closingBalance
+  isNewAccount:              boolean | null; // true only if the statement explicitly indicates a new account
+
+  /** Savings — interest this cycle; null if not a savings statement or not shown */
+  interestEarnedThisPeriod:  number | null;
+  annualPercentageYield:     number | null;
+
+  /** Investment — null if not an investment/brokerage statement or not shown */
+  portfolioEndingValue:      number | null;
 }
 
 export interface ParseResult {
@@ -57,11 +74,29 @@ The object must have exactly this structure:
     "currency": "3-letter ISO code like LKR USD GBP, or null",
     "statementFrom": "YYYY-MM-DD or null",
     "statementTo": "YYYY-MM-DD or null",
-    "openingBalance": <number or null>,
-    "closingBalance": <number or null>,
-    "totalDebits": <total debit/withdrawal sum printed on statement, or null>,
-    "totalCredits": <total credit/deposit sum printed on statement, or null>,
-    "statementTransactionCount": <integer count of transactions printed on statement, or null>
+    "openingBalance": <number or null — previous/closing balance start of period; for credit cards often "previous balance">,
+    "closingBalance": <number or null — end-of-period balance; for credit cards map "new balance", "closing balance", "statement balance" here>,
+    "totalDebits": <number or null — statement-printed total outflows for the period (debits/withdrawals/charges aggregate as printed)>,
+    "totalCredits": <number or null — statement-printed total inflows (credits/deposits/payments aggregate as printed)>,
+    "statementTransactionCount": <integer count of transactions printed on statement, or null>,
+
+    "creditLimit": <number or null — only for credit/revolving; total credit limit if printed>,
+    "availableCredit": <number or null>,
+    "minimumPaymentDue": <number or null>,
+    "minimumPaymentDueDate": "YYYY-MM-DD or null",
+    "paymentDueDate": "YYYY-MM-DD or null — due date for this statement payment if shown>",
+    "aprAnnualPercent": <number or null — e.g. 19.99 for 19.99% APR; null if not stated>,
+    "totalPurchasesAndCharges": <number or null — purchases + card charges/fees excluding interest if the statement shows a separate purchases total>,
+    "totalPaymentsAndCredits": <number or null — payments, refunds, and reversal credits aggregate if printed>,
+    "totalFeesCharged": <number or null>,
+    "totalInterestCharged": <number or null>,
+    "outstandingBalance": <number or null — use when the statement prints a distinct "current balance", "total outstanding", or revolving balance different from closingBalance; else null>,
+    "isNewAccount": <true | false | null — true ONLY if the statement explicitly indicates a new account (e.g. "welcome", "new account", first statement); otherwise false or null>,
+
+    "interestEarnedThisPeriod": <number or null — savings/deposit interest for this statement period>,
+    "annualPercentageYield": <number or null — APY/AER as a percentage number e.g. 4.5 for 4.5%>,
+
+    "portfolioEndingValue": <number or null — total portfolio / account value at statement date if investment/brokerage>
   },
   "transactions": [
     {
@@ -90,6 +125,12 @@ Account type detection — set accountType using the first matching rule:
 - "investment" if statement shows units, shares, NAV, portfolio value, dividends, or brokerage entries
 - "checking"   for all other transactional accounts (current accounts, everyday accounts, etc.)
 
+Type-specific meta (always include every key; use null when not applicable or not printed):
+- **credit**: Map printed summary lines into meta: openingBalance = previous balance; closingBalance = new/statement balance. Fill totalPurchasesAndCharges / totalPaymentsAndCredits when the statement shows those subtotals (not guesses). totalDebits/totalCredits should mirror the statement's own "total debits/charges" and "total credits/payments" summary lines when present. If isNewAccount is true, you MUST set creditLimit when the limit appears anywhere on the statement; if the statement says new account but no limit is printed, creditLimit stays null.
+- **checking**: Prefer openingBalance/closingBalance and totalDebits (withdrawals) / totalCredits (deposits) from printed summaries. Leave all credit-* and savings/investment extras null.
+- **savings**: Fill interestEarnedThisPeriod and annualPercentageYield when shown; credit-* null unless it is actually a combined pack.
+- **investment**: Fill portfolioEndingValue when shown; other type-specific fields null unless also printed.
+
 Rules:
 - amount is always positive; use "type" for direction (income = money in, expense = money out)
 - For credit card statements: purchases and fees are "expense"; payments and refunds are "income"
@@ -100,18 +141,110 @@ Rules:
 - do NOT include opening/closing balance rows or statement summary rows as transactions
 - do NOT include reversed/voided transactions (a transaction immediately cancelled by an equal and opposite entry on the same date)
 - include every other transaction row without omission
+- duplicate merchant names or duplicate amounts on different dates are still separate transactions — never skip a row because it "looks like" another
+- continue through the full transaction list until the printed subtotal / section footer (e.g. SUBTOTAL, TOTAL FOR PERIOD) — do not stop early
+- include every meta key shown in the schema above (use null for any value not found or not applicable)
 - all meta fields default to null if not found in the statement`;
 
 // ─── Validate + normalise LLM output ─────────────────────────────────────────
 
-function normalise(raw: unknown[]): AIParsedRow[] {
+function normaliseMeta(raw: Record<string, unknown>): StatementMeta {
+  const str  = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
+  const num  = (v: unknown) => { const n = parseFloat(String(v ?? "")); return isNaN(n) ? null : n; };
+  const date = (v: unknown) => { const s = str(v); return s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null; };
+  const bool = (v: unknown): boolean | null => {
+    if (v === true) return true;
+    if (v === false) return false;
+    const s = String(v ?? "").trim().toLowerCase();
+    if (s === "true" || s === "yes" || s === "1") return true;
+    if (s === "false" || s === "no" || s === "0") return false;
+    return null;
+  };
+  const acctTypes = ["checking", "savings", "credit", "investment"] as const;
+  const rawType = str(raw.accountType)?.toLowerCase();
+  return {
+    bankName:                  str(raw.bankName),
+    accountNumber:             str(raw.accountNumber),
+    accountType:               acctTypes.find(t => t === rawType) ?? null,
+    currency:                  str(raw.currency)?.toUpperCase().slice(0, 3) ?? null,
+    statementFrom:             date(raw.statementFrom),
+    statementTo:               date(raw.statementTo),
+    openingBalance:            num(raw.openingBalance),
+    closingBalance:            num(raw.closingBalance),
+    totalDebits:               num(raw.totalDebits),
+    totalCredits:              num(raw.totalCredits),
+    statementTransactionCount: (() => { const n = parseInt(String(raw.statementTransactionCount ?? "")); return isNaN(n) ? null : n; })(),
+
+    creditLimit:               num(raw.creditLimit),
+    availableCredit:           num(raw.availableCredit),
+    minimumPaymentDue:         num(raw.minimumPaymentDue),
+    minimumPaymentDueDate:     date(raw.minimumPaymentDueDate),
+    paymentDueDate:            date(raw.paymentDueDate),
+    aprAnnualPercent:          num(raw.aprAnnualPercent),
+    totalPurchasesAndCharges:  num(raw.totalPurchasesAndCharges),
+    totalPaymentsAndCredits:   num(raw.totalPaymentsAndCredits),
+    totalFeesCharged:          num(raw.totalFeesCharged),
+    totalInterestCharged:      num(raw.totalInterestCharged),
+    outstandingBalance:        num(raw.outstandingBalance),
+    isNewAccount:              bool(raw.isNewAccount),
+
+    interestEarnedThisPeriod:  num(raw.interestEarnedThisPeriod),
+    annualPercentageYield:     num(raw.annualPercentageYield),
+
+    portfolioEndingValue:      num(raw.portfolioEndingValue),
+  };
+}
+
+interface ParsedResponse {
+  transactions: AIParsedRow[];
+  meta:         StatementMeta | null;
+  rawCount:     number;
+}
+
+function inferTxnYear(meta: StatementMeta | null): number | null {
+  const yFrom = meta?.statementFrom?.slice(0, 4);
+  const yTo   = meta?.statementTo?.slice(0, 4);
+  const y = (yTo ?? yFrom) ? parseInt(String(yTo ?? yFrom), 10) : NaN;
+  return Number.isFinite(y) ? y : null;
+}
+
+function parseTxnDate(raw: unknown, meta: StatementMeta | null): string | null {
+  const s = String(raw ?? "").trim();
+  if (!s) return null;
+
+  // Already ISO
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+
+  // Accept DD/MM[/YY|YYYY] (default DD/MM per prompt)
+  const m = s.match(/^(\d{1,2})[\/\-\.](\d{1,2})(?:[\/\-\.](\d{2,4}))?$/);
+  if (!m) return null;
+
+  const dd = parseInt(m[1], 10);
+  const mm = parseInt(m[2], 10);
+  if (!(dd >= 1 && dd <= 31 && mm >= 1 && mm <= 12)) return null;
+
+  let yyyy: number | null = null;
+  if (m[3]) {
+    const y = parseInt(m[3], 10);
+    if (!Number.isFinite(y)) return null;
+    yyyy = m[3].length === 2 ? (2000 + y) : y;
+  } else {
+    yyyy = inferTxnYear(meta);
+  }
+  if (!yyyy) return null;
+
+  const iso = `${String(yyyy).padStart(4, "0")}-${String(mm).padStart(2, "0")}-${String(dd).padStart(2, "0")}`;
+  return /^\d{4}-\d{2}-\d{2}$/.test(iso) ? iso : null;
+}
+
+function normaliseWithMeta(raw: unknown[], meta: StatementMeta | null): AIParsedRow[] {
   const rows: AIParsedRow[] = [];
   for (const item of raw) {
     if (typeof item !== "object" || item === null) continue;
     const r = item as Record<string, unknown>;
 
-    const date = String(r.date ?? "").trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) continue;
+    const date = parseTxnDate(r.date, meta);
+    if (!date) continue;
 
     const amount = parseFloat(String(r.amount ?? "0"));
     if (isNaN(amount) || amount <= 0) continue;
@@ -132,66 +265,61 @@ function normalise(raw: unknown[]): AIParsedRow[] {
   return rows;
 }
 
-function normaliseMeta(raw: Record<string, unknown>): StatementMeta {
-  const str  = (v: unknown) => (typeof v === "string" && v.trim() ? v.trim() : null);
-  const num  = (v: unknown) => { const n = parseFloat(String(v ?? "")); return isNaN(n) ? null : n; };
-  const date = (v: unknown) => { const s = str(v); return s && /^\d{4}-\d{2}-\d{2}$/.test(s) ? s : null; };
-  const acctTypes = ["checking", "savings", "credit", "investment"] as const;
-  const rawType = str(raw.accountType)?.toLowerCase();
-  return {
-    bankName:                  str(raw.bankName),
-    accountNumber:             str(raw.accountNumber),
-    accountType:               acctTypes.find(t => t === rawType) ?? null,
-    currency:                  str(raw.currency)?.toUpperCase().slice(0, 3) ?? null,
-    statementFrom:             date(raw.statementFrom),
-    statementTo:               date(raw.statementTo),
-    openingBalance:            num(raw.openingBalance),
-    closingBalance:            num(raw.closingBalance),
-    totalDebits:               num(raw.totalDebits),
-    totalCredits:              num(raw.totalCredits),
-    statementTransactionCount: (() => { const n = parseInt(String(raw.statementTransactionCount ?? "")); return isNaN(n) ? null : n; })(),
-  };
-}
-
-interface ParsedResponse {
-  transactions: AIParsedRow[];
-  meta:         StatementMeta | null;
-  rawCount:     number;
-}
-
 function parseJSON(content: string): ParsedResponse {
   const cleaned = content.replace(/^```(?:json)?\n?/m, "").replace(/\n?```$/m, "").trim();
   const raw = JSON.parse(cleaned);
 
   // New format: { meta, transactions }
   if (raw && typeof raw === "object" && !Array.isArray(raw) && Array.isArray(raw.transactions)) {
-    const txns = normalise(raw.transactions);
     const meta = raw.meta && typeof raw.meta === "object" ? normaliseMeta(raw.meta as Record<string, unknown>) : null;
+    const txns = normaliseWithMeta(raw.transactions, meta);
     return { transactions: txns, meta, rawCount: raw.transactions.length };
   }
 
   // Fallback: plain array (old format or model non-compliance)
   const arr = Array.isArray(raw) ? raw : [];
-  return { transactions: normalise(arr), meta: null, rawCount: arr.length };
+  return { transactions: normaliseWithMeta(arr, null), meta: null, rawCount: arr.length };
 }
 
 // ─── CSV parse — OpenAI primary, DeepSeek fallback ───────────────────────────
 
+/** Model input budget (chars). Keep head+tail when oversized so long PDFs still include txn tables. */
+const MAX_STATEMENT_INPUT_CHARS = 120_000;
+/** Enough room for large statements + full meta JSON (Anthropic was 4096 and truncated mid-array). */
+const MAX_COMPLETION_TOKENS = 16_384;
+
+function prepareStatementInputText(raw: string): string {
+  const t = raw.trim();
+  if (t.length <= MAX_STATEMENT_INPUT_CHARS) return t;
+  const headLen = Math.floor(MAX_STATEMENT_INPUT_CHARS * 0.58);
+  const tailLen = MAX_STATEMENT_INPUT_CHARS - headLen - 120;
+  const head = t.slice(0, headLen);
+  const tail = t.slice(-tailLen);
+  const omitted = t.length - headLen - tailLen;
+  return `${head}\n\n[... ${omitted} characters omitted from middle — extract transactions from both sections above ...]\n\n${tail}`;
+}
+
 export async function parseCSVWithAI(csvText: string): Promise<ParseResult> {
-  const userMessage = `Extract all transactions from this CSV bank statement:\n\n${csvText.slice(0, 40_000)}`;
+  const body = prepareStatementInputText(csvText);
+  const userMessage = `Extract all transactions from this bank statement text:\n\n${body}`;
 
   // Primary: OpenAI GPT-4o-mini
   if (process.env.OPENAI_API_KEY) {
     try {
       const res = await getOpenAI().chat.completions.create({
-        model:       "gpt-4o-mini",
-        temperature: 0,
+        model:                 "gpt-4o-mini",
+        temperature:           0,
+        max_completion_tokens: MAX_COMPLETION_TOKENS,
         messages: [
           { role: "system", content: SYSTEM_PROMPT },
           { role: "user",   content: userMessage },
         ],
       });
-      const parsed = parseJSON(res.choices[0]?.message?.content ?? "{}");
+      const content = res.choices[0]?.message?.content ?? "{}";
+      if (res.choices[0]?.finish_reason === "length") {
+        console.warn("[parse-document] OpenAI hit output limit (finish_reason=length); consider raising MAX_COMPLETION_TOKENS");
+      }
+      const parsed = parseJSON(content);
       return { ...parsed, provider: "openai", model: "gpt-4o-mini" };
     } catch (err) {
       console.error("[parse-document] OpenAI GPT-4o-mini failed:", err instanceof Error ? err.message : err);
@@ -203,7 +331,7 @@ export async function parseCSVWithAI(csvText: string): Promise<ParseResult> {
     try {
       const res = await getAnthropic().messages.create({
         model:       "claude-haiku-4-5-20251001",
-        max_tokens:  4096,
+        max_tokens:  MAX_COMPLETION_TOKENS,
         system:      SYSTEM_PROMPT,
         messages: [{ role: "user", content: userMessage }],
       });
@@ -215,25 +343,7 @@ export async function parseCSVWithAI(csvText: string): Promise<ParseResult> {
     }
   }
 
-  // Fallback: DeepSeek-V3
-  if (process.env.DEEPSEEK_API_KEY) {
-    try {
-      const res = await getDeepSeek().chat.completions.create({
-        model:       "deepseek-chat",
-        temperature: 0,
-        messages: [
-          { role: "system", content: SYSTEM_PROMPT },
-          { role: "user",   content: userMessage },
-        ],
-      });
-      const parsed = parseJSON(res.choices[0]?.message?.content ?? "{}");
-      return { ...parsed, provider: "deepseek", model: "deepseek-chat" };
-    } catch (err) {
-      console.error("[parse-document] DeepSeek failed:", err instanceof Error ? err.message : err);
-    }
-  }
-
-  throw new Error("No AI provider configured. Add OPENAI_API_KEY, ANTHROPIC_API_KEY, or DEEPSEEK_API_KEY.");
+  throw new Error("No AI provider configured. Add OPENAI_API_KEY or ANTHROPIC_API_KEY.");
 }
 
 // ─── PDF parse — extract text first, then use same LLM path as CSV ───────────

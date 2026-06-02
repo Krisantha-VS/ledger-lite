@@ -59,6 +59,7 @@ export async function GET(req: NextRequest) {
     `ll_at_init=${encodeURIComponent(access_token)}; SameSite=Lax; Path=/; Max-Age=30${secure}`);
   res.headers.append('Set-Cookie', 'll_oauth_state=; Path=/; Max-Age=0');
   res.headers.append('Set-Cookie', 'll_oauth_verifier=; Path=/; Max-Age=0');
+  // ll_pending_checkout is intentionally kept alive — /api/v1/checkout-intent reads + clears it
 
   return res;
 }
