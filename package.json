@@ -4,7 +4,6 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "prebuild": "prisma db execute --file prisma/migrations/20250416190000_add_subscription/migration.sql && prisma db execute --file prisma/migrations/20260418000000_payments_v1/migration.sql",
     "build": "prisma generate && next build",
     "db:migrate": "prisma migrate deploy",
     "db:apply-subscription": "prisma db execute --file prisma/migrations/20250416190000_add_subscription/migration.sql",
