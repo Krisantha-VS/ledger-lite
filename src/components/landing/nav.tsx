@@ -59,6 +59,13 @@ export function LandingNav() {
             >
               Pricing
             </a>
+            <Link
+              href="/changelog"
+              className="text-sm transition-colors hover:opacity-80"
+              style={{ color: "var(--land-muted)" }}
+            >
+              Changelog
+            </Link>
           </nav>
 
           {/* Theme toggle */}

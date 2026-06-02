@@ -4,7 +4,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
   Wallet, LayoutDashboard, ArrowUpDown, PiggyBank,
-  Target, BarChart3, ChevronRight, Settings, Tag, Upload, Repeat2, Sparkles, Zap,
+  Target, BarChart3, ChevronRight, Settings, Tag, Upload, Repeat2, Sparkles, Zap, ScrollText,
 } from "lucide-react"
 import { BrandMark } from "@/components/ui/brand-mark"
 import { cn } from "@/shared/lib/utils"
@@ -20,6 +20,7 @@ const NAV = [
   { href: "/categories",   label: "Categories",   icon: Tag },
   { href: "/goals",        label: "Goals",        icon: Target },
   { href: "/reports",      label: "Reports",      icon: BarChart3 },
+  { href: "/releases",     label: "What's New",   icon: ScrollText },
   { href: "/settings",     label: "Settings",     icon: Settings },
 ]
 
