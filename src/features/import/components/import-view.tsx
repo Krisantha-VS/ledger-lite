@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect, useRef, useCallback, DragEvent, ChangeEvent } from "react";
-import { Upload, FileText, ChevronLeft, ChevronRight, Check, AlertCircle, Sparkles, AlertTriangle, Building2, Calendar, ArrowLeftRight, Pencil, Trash2 } from "lucide-react";
+import { Upload, FileText, ChevronLeft, ChevronRight, Check, AlertCircle, Sparkles, AlertTriangle, Building2, Calendar, ArrowLeftRight, Pencil, Trash2, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { authFetch } from "@/shared/lib/auth-client";
+import { useBilling, startCheckout } from "@/shared/hooks/useBilling";
 import { useAccounts } from "@/features/accounts/hooks/useAccounts";
 import { useCategories } from "@/features/categories/hooks/useCategories";
 import { accountTypeLabel } from "@/lib/account-types";
@@ -185,6 +186,7 @@ type Mode = "csv" | "ai";
 export function ImportView() {
   const { accounts, loading: accountsLoading, createAccount } = useAccounts();
   const { categories, loading: categoriesLoading } = useCategories();
+  const { data: billing } = useBilling();
 
   const [step, setStep]       = useState<Step>(1);
   const [mode, setMode]       = useState<Mode>("csv");
@@ -526,12 +528,57 @@ export function ImportView() {
     <div className="mx-auto max-w-2xl space-y-6 pb-24 sm:pb-0">
 
       {/* Header */}
-      <div className="flex items-center gap-2">
-        <Upload className="h-5 w-5" style={{ color: "hsl(var(--ll-accent))" }} />
-        <div>
-          <h1 className="text-lg font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>Import Transactions</h1>
-          <p className="text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>Upload a bank statement (CSV, PDF, XLSX, OFX, QFX, TXT)</p>
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-center gap-2">
+          <Upload className="h-5 w-5" style={{ color: "hsl(var(--ll-accent))" }} />
+          <div>
+            <h1 className="text-lg font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>Import Transactions</h1>
+            <p className="text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>Upload a bank statement (CSV, PDF, XLSX, OFX, QFX, TXT)</p>
+          </div>
         </div>
+        {/* AI Import quota badge */}
+        {billing && (
+          billing.plan === "free" ? (
+            <button
+              onClick={() => startCheckout("lite", "monthly")}
+              className="flex-shrink-0 flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-medium text-white"
+              style={{ background: "hsl(var(--ll-accent))" }}
+            >
+              <Sparkles className="h-3 w-3" /> Unlock AI import
+            </button>
+          ) : billing.aiImportsLimit === null ? (
+            <span className="flex-shrink-0 flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-medium"
+              style={{ background: "hsl(var(--ll-income)/0.1)", color: "hsl(var(--ll-income))" }}>
+              <Sparkles className="h-3 w-3" /> Unlimited AI imports
+            </span>
+          ) : (
+            <div className="flex-shrink-0 flex flex-col items-end gap-0.5">
+              <span className="text-[10px]" style={{ color: "hsl(var(--ll-text-muted))" }}>AI imports this month</span>
+              <div className="flex items-center gap-1.5">
+                <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: "hsl(var(--ll-border))" }}>
+                  <div className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${Math.min(100, (billing.aiImportsUsed / billing.aiImportsLimit!) * 100)}%`,
+                      background: billing.aiImportsRemaining === 0 ? "hsl(var(--ll-expense))" : "hsl(var(--ll-accent))",
+                    }}
+                  />
+                </div>
+                <span className="text-xs font-semibold tabular-nums"
+                  style={{ color: billing.aiImportsRemaining === 0 ? "hsl(var(--ll-expense))" : "hsl(var(--ll-text-primary))" }}>
+                  {billing.aiImportsRemaining}/{billing.aiImportsLimit}
+                  <span className="font-normal ml-0.5" style={{ color: "hsl(var(--ll-text-muted))" }}>left</span>
+                </span>
+              </div>
+              {billing.aiImportsRemaining === 0 && (
+                <button onClick={() => startCheckout("pro", "monthly")}
+                  className="flex items-center gap-1 text-[10px] font-medium"
+                  style={{ color: "hsl(var(--ll-accent))" }}>
+                  <Zap className="h-2.5 w-2.5" /> Upgrade to Pro for unlimited
+                </button>
+              )}
+            </div>
+          )
+        )}
       </div>
 
       {/* Step indicator */}

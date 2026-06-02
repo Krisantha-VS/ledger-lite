@@ -6,22 +6,28 @@ import { authFetch } from "@/shared/lib/auth-client";
 import type { Transaction } from "@/shared/types";
 
 interface Filters {
-  page?:      number;
-  perPage?:   number;
-  accountId?: number;
-  type?:      string;
-  month?:     string;
-  search?:    string;
+  page?:       number;
+  perPage?:    number;
+  accountId?:  number;
+  categoryId?: number;
+  type?:       string;
+  month?:      string;
+  search?:     string;
+  dateFrom?:   string;
+  dateTo?:     string;
 }
 
 async function fetchTransactions(filters: Filters): Promise<{ rows: Transaction[]; total: number }> {
   const params = new URLSearchParams();
-  if (filters.page)      params.set("page",      String(filters.page));
-  if (filters.perPage)   params.set("perPage",   String(filters.perPage));
-  if (filters.accountId) params.set("accountId", String(filters.accountId));
-  if (filters.type)      params.set("type",      filters.type);
-  if (filters.month)     params.set("month",     filters.month);
-  if (filters.search)    params.set("search",    filters.search);
+  if (filters.page)       params.set("page",       String(filters.page));
+  if (filters.perPage)    params.set("perPage",    String(filters.perPage));
+  if (filters.accountId)  params.set("accountId",  String(filters.accountId));
+  if (filters.categoryId) params.set("categoryId", String(filters.categoryId));
+  if (filters.type)       params.set("type",       filters.type);
+  if (filters.month)      params.set("month",      filters.month);
+  if (filters.search)     params.set("search",     filters.search);
+  if (filters.dateFrom)   params.set("dateFrom",   filters.dateFrom);
+  if (filters.dateTo)     params.set("dateTo",     filters.dateTo);
 
   const res  = await authFetch(`/api/v1/transactions?${params}`);
   const json = await res.json();

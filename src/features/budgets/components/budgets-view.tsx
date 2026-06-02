@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Target, Trash2, RefreshCw } from "lucide-react";
+import { Plus, Target, Trash2, RefreshCw, Pencil, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CategoryIcon } from "@/components/ui/category-icon";
 import { useBudgets } from "@/features/budgets/hooks/useBudgets";
@@ -15,6 +15,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/ui/empty-state";
 import { formatCurrency } from "@/shared/lib/formatters";
 import { BudgetSuggestions } from "./budget-suggestions";
+import type { Budget } from "@/shared/types";
 
 const schema = z.object({
   categoryId: z.number().int().positive("Select a category"),
@@ -23,12 +24,32 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
+type FilterType = "all" | "over" | "near" | "ok";
+type SortType   = "category" | "pct" | "amount";
+
+const FILTER_OPTIONS: { value: FilterType; label: string }[] = [
+  { value: "all",  label: "All" },
+  { value: "over", label: "Over limit" },
+  { value: "near", label: "Near limit" },
+  { value: "ok",   label: "On track" },
+];
+
+const SORT_OPTIONS: { value: SortType; label: string }[] = [
+  { value: "category", label: "Category A–Z" },
+  { value: "pct",      label: "% spent ↓" },
+  { value: "amount",   label: "Budget ↓" },
+];
+
 export function BudgetsView() {
   const { budgets, loading, upsertBudget, deleteBudget } = useBudgets();
   const { categories } = useCategories();
 
-  const [modalOpen, setModalOpen] = useState(false);
-  const [deleteId, setDeleteId]   = useState<number | null>(null);
+  const [modalOpen, setModalOpen]   = useState(false);
+  const [deleteId,  setDeleteId]    = useState<number | null>(null);
+  const [editBudget, setEditBudget] = useState<Budget | null>(null);
+  const [filter, setFilter]         = useState<FilterType>("all");
+  const [sort,   setSort]           = useState<SortType>("category");
+  const [sortOpen, setSortOpen]     = useState(false);
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -37,8 +58,15 @@ export function BudgetsView() {
 
   const rolloverValue = watch("rollover");
 
-  const openModal = () => {
+  const openCreate = () => {
+    setEditBudget(null);
     reset({ categoryId: undefined, amount: undefined, rollover: false });
+    setModalOpen(true);
+  };
+
+  const openEdit = (b: Budget) => {
+    setEditBudget(b);
+    reset({ categoryId: b.categoryId, amount: Number(b.amount), rollover: b.rollover });
     setModalOpen(true);
   };
 
@@ -47,6 +75,33 @@ export function BudgetsView() {
     setModalOpen(false);
   };
 
+  const displayed = useMemo(() => {
+    let list = [...budgets];
+    // Filter
+    list = list.filter(b => {
+      const eff  = b.effectiveAmount ?? Number(b.amount);
+      const pct  = ((b.spent ?? 0) / eff) * 100;
+      const over = (b.spent ?? 0) > eff;
+      const near = !over && pct >= 75;
+      if (filter === "over") return over;
+      if (filter === "near") return near;
+      if (filter === "ok")   return !over && !near;
+      return true;
+    });
+    // Sort
+    list.sort((a, b) => {
+      if (sort === "category") return (a.categoryName ?? "").localeCompare(b.categoryName ?? "");
+      if (sort === "pct") {
+        const pctA = ((a.spent ?? 0) / (a.effectiveAmount ?? Number(a.amount))) * 100;
+        const pctB = ((b.spent ?? 0) / (b.effectiveAmount ?? Number(b.amount))) * 100;
+        return pctB - pctA;
+      }
+      if (sort === "amount") return Number(b.amount) - Number(a.amount);
+      return 0;
+    });
+    return list;
+  }, [budgets, filter, sort]);
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -54,7 +109,7 @@ export function BudgetsView() {
           <h1 className="text-lg font-semibold" style={{ color: "hsl(var(--ll-text-primary))" }}>Budgets</h1>
           <p className="text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>Monthly spending limits</p>
         </div>
-        <Button onClick={openModal} aria-label="New budget">
+        <Button onClick={openCreate} aria-label="New budget">
           <Plus className="h-3.5 w-3.5" />
           New Budget
         </Button>
@@ -67,7 +122,7 @@ export function BudgetsView() {
         }}
       />
 
-      {/* QW3: Summary stats bar */}
+      {/* Summary stats bar */}
       {!loading && budgets.length > 0 && (() => {
         const totalLimit = budgets.reduce((s, b) => s + (b.effectiveAmount ?? Number(b.amount)), 0);
         const totalSpent = budgets.reduce((s, b) => s + (b.spent ?? 0), 0);
@@ -94,6 +149,45 @@ export function BudgetsView() {
         );
       })()}
 
+      {/* Filter + Sort bar */}
+      {!loading && budgets.length > 0 && (
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex gap-1">
+            {FILTER_OPTIONS.map(f => (
+              <button key={f.value} onClick={() => setFilter(f.value)}
+                className="cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium transition-all"
+                style={{
+                  background: filter === f.value ? "hsl(var(--ll-accent))" : "hsl(var(--ll-bg-surface))",
+                  color: filter === f.value ? "hsl(var(--ll-accent-fg))" : "hsl(var(--ll-text-muted))",
+                }}>
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <div className="relative">
+            <button onClick={() => setSortOpen(p => !p)}
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium border transition-colors"
+              style={{ background: "hsl(var(--ll-bg-surface))", color: "hsl(var(--ll-text-secondary))", borderColor: "hsl(var(--ll-border))" }}>
+              {SORT_OPTIONS.find(s => s.value === sort)?.label}
+              <ChevronDown className="h-3 w-3" />
+            </button>
+            {sortOpen && (
+              <div className="absolute right-0 mt-1 z-10 rounded-xl overflow-hidden shadow-lg min-w-[140px]"
+                style={{ background: "hsl(var(--ll-bg-elevated))", border: "1px solid hsl(var(--ll-border))" }}>
+                {SORT_OPTIONS.map(s => (
+                  <button key={s.value}
+                    onClick={() => { setSort(s.value); setSortOpen(false); }}
+                    className="flex w-full px-3 py-2 text-xs text-left transition-colors hover:bg-white/5"
+                    style={{ color: sort === s.value ? "hsl(var(--ll-accent))" : "hsl(var(--ll-text-secondary))" }}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="space-y-2">
           {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16 rounded-xl" />)}
@@ -103,17 +197,18 @@ export function BudgetsView() {
           icon={Target}
           title="No budgets set"
           description="Set spending limits for your categories"
-          action={
-            <Button onClick={openModal} size="md">Add Budget</Button>
-          }
+          action={<Button onClick={openCreate} size="md">Add Budget</Button>}
         />
+      ) : displayed.length === 0 ? (
+        <p className="py-8 text-center text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>
+          No budgets match this filter.
+        </p>
       ) : (
         <div className="space-y-2">
-          {budgets.map(b => {
+          {displayed.map(b => {
             const effective = b.effectiveAmount ?? Number(b.amount);
             const pct       = Math.min(100, ((b.spent ?? 0) / effective) * 100);
             const over      = (b.spent ?? 0) > effective;
-            // M3: amber near-limit state
             const nearLimit = !over && pct >= 75;
             const barColor  = over ? "hsl(var(--ll-expense))" : nearLimit ? "hsl(var(--ll-warning))" : "hsl(var(--ll-accent))";
             return (
@@ -126,7 +221,6 @@ export function BudgetsView() {
                         <span className="truncate text-sm font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
                           {b.categoryName}
                         </span>
-                        {/* M3: nearly-at-limit badge */}
                         {nearLimit && (
                           <span className="shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium" style={{ background: "hsl(var(--ll-warning) / 0.1)", color: "hsl(var(--ll-warning))" }}>
                             Nearly at limit
@@ -151,11 +245,18 @@ export function BudgetsView() {
                       <p className="ll-mono text-xs font-semibold" style={{ color: over ? "hsl(var(--ll-expense))" : "hsl(var(--ll-text-primary))" }}>
                         {formatCurrency(b.spent ?? 0)} <span className="font-normal" style={{ color: "hsl(var(--ll-text-muted))" }}>/ {formatCurrency(effective)}</span>
                       </p>
-                      {/* M3: remaining text uses amber when near limit */}
                       <p className="text-[10px]" style={{ color: over ? "hsl(var(--ll-expense))" : nearLimit ? "hsl(var(--ll-warning))" : "hsl(var(--ll-text-muted))" }}>
                         {over ? `${Math.round(pct)}% used` : `${formatCurrency(effective - (b.spent ?? 0))} left`}
                       </p>
                     </div>
+                    <button
+                      onClick={() => openEdit(b)}
+                      className="cursor-pointer rounded p-1 transition-colors hover:bg-[hsl(var(--ll-accent)/0.1)]"
+                      style={{ color: "hsl(var(--ll-text-muted))" }}
+                      aria-label={`Edit ${b.categoryName} budget`}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
                     <button
                       onClick={() => setDeleteId(b.id)}
                       className="cursor-pointer rounded p-1 transition-colors hover:bg-rose-500/10"
@@ -167,12 +268,8 @@ export function BudgetsView() {
                   </div>
                 </div>
                 <div className="mt-3 h-1.5 overflow-hidden rounded-full" style={{ background: "hsl(var(--ll-border))" }}>
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{ width: `${pct}%`, background: barColor }}
-                  />
+                  <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: barColor }} />
                 </div>
-                {/* QW4-UI: pace forecast indicator */}
                 {b.pace && b.pace.daysRemaining > 0 && (
                   <p className="mt-1.5 text-[10px]" style={{ color: b.pace.isOnTrack ? "hsl(var(--ll-text-muted))" : "hsl(var(--ll-expense))" }}>
                     {b.pace.isOnTrack
@@ -192,19 +289,22 @@ export function BudgetsView() {
         onClose={() => setDeleteId(null)}
         onConfirm={() => { if (deleteId !== null) { deleteBudget(deleteId); setDeleteId(null); } }}
         title="Delete budget?"
-        description="This spending limit will be permanently removed."
+        description="This spending limit will be removed. Your existing transactions in this category are not affected."
       />
 
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Set Budget" size="sm">
+      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title={editBudget ? "Edit Budget" : "Set Budget"} size="sm">
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
           <div>
             <label className="mb-1 block text-xs font-medium" style={{ color: "hsl(var(--ll-text-secondary))" }}>Category</label>
-            <select className="ll-input" aria-label="Category" {...register("categoryId", { valueAsNumber: true })}>
+            <select className="ll-input" aria-label="Category" disabled={!!editBudget} {...register("categoryId", { valueAsNumber: true })}>
               <option value="">Select category…</option>
               {categories.filter(c => c.type !== "income").map(c => (
                 <option key={c.id} value={c.id}>{c.icon} {c.name}</option>
               ))}
             </select>
+            {editBudget && (
+              <p className="mt-0.5 text-[10px]" style={{ color: "hsl(var(--ll-text-muted))" }}>Category cannot be changed. Delete and re-add to change category.</p>
+            )}
             {errors.categoryId && <p className="mt-0.5 text-xs" style={{ color: "hsl(var(--ll-expense))" }}>{errors.categoryId.message}</p>}
           </div>
 
@@ -230,14 +330,9 @@ export function BudgetsView() {
                 <p className="text-[10px]" style={{ color: "hsl(var(--ll-text-muted))" }}>Carry unspent balance to next month</p>
               </div>
             </div>
-            <div
-              className="h-4 w-7 rounded-full transition-colors relative"
-              style={{ background: rolloverValue ? "hsl(var(--ll-accent))" : "hsl(var(--ll-border))" }}
-            >
-              <div
-                className="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform"
-                style={{ transform: rolloverValue ? "translateX(14px)" : "translateX(2px)" }}
-              />
+            <div className="h-4 w-7 rounded-full transition-colors relative" style={{ background: rolloverValue ? "hsl(var(--ll-accent))" : "hsl(var(--ll-border))" }}>
+              <div className="absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform"
+                style={{ transform: rolloverValue ? "translateX(14px)" : "translateX(2px)" }} />
             </div>
           </button>
 
@@ -246,7 +341,7 @@ export function BudgetsView() {
             className="flex w-full items-center justify-center rounded-lg py-2 text-sm font-medium text-white disabled:opacity-60"
             style={{ background: "hsl(var(--ll-accent))" }}
           >
-            {isSubmitting ? "Saving…" : "Save Budget"}
+            {isSubmitting ? "Saving…" : editBudget ? "Update Budget" : "Save Budget"}
           </button>
         </form>
       </Modal>

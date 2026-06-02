@@ -34,13 +34,25 @@ export function useMonthlySummary(months = 12) {
   return { rows, loading };
 }
 
-export function useCategoryBreakdown(month?: string, txType?: "income" | "expense") {
+export function useCategoryBreakdown(month?: string, txType?: "income" | "expense", from?: string, to?: string) {
   const resolvedType = txType ?? "expense";
+  const extra = from && to
+    ? `&from=${from}&to=${to}&txType=${resolvedType}`
+    : `${month ? `&month=${month}` : ""}&txType=${resolvedType}`;
   const { data: rows = [], isLoading: loading } = useQuery<CategoryBreakdown[]>({
-    queryKey: ["summary", "categories", month, resolvedType],
-    queryFn: () => fetchSummary("categories", `${month ? `&month=${month}` : ""}&txType=${resolvedType}`),
+    queryKey: ["summary", "categories", month, resolvedType, from, to],
+    queryFn: () => fetchSummary("categories", extra),
   });
   return { rows, loading };
+}
+
+export function useRangeSummary(from?: string, to?: string) {
+  const { data, isLoading: loading } = useQuery<{ income: number; expenses: number; net: number }>({
+    queryKey: ["summary", "range", from, to],
+    queryFn: () => fetchSummary("range", `${from ? `&from=${from}` : ""}${to ? `&to=${to}` : ""}`),
+    enabled: !!(from && to),
+  });
+  return { data: data ?? null, loading };
 }
 
 export interface NetWorthSummary {

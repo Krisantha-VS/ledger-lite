@@ -25,28 +25,46 @@ const RANGE_OPTIONS: RangeOption[] = [
   { label: "Year to date",   months: 0, ytd: true },
 ];
 
-/** Returns the YYYY-MM string for the last month in the selected range. */
-function rangeEndMonth(opt: RangeOption): string {
-  const now = new Date();
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-}
-
-/** Compute the actual months count to pass to the API for YTD. */
 function resolvedMonths(opt: RangeOption): number {
   if (!opt.ytd) return opt.months;
+  return new Date().getMonth() + 1;
+}
+
+/** ISO date string for the first day of the range (e.g. "2025-12-01" for last 6 months). */
+function rangeFromDate(opt: RangeOption): string {
   const now = new Date();
-  return now.getMonth() + 1; // months elapsed since Jan (1-indexed)
+  if (opt.ytd) {
+    return `${now.getFullYear()}-01-01`;
+  }
+  const start = new Date(now.getFullYear(), now.getMonth() - opt.months + 1, 1);
+  return `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+/** ISO date string for the last day of the current month. */
+function rangeToDate(): string {
+  const now = new Date();
+  const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+  return `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`;
+}
+
+function rangeLabel(opt: RangeOption, from: string): string {
+  const fromDate = new Date(from + "T00:00:00");
+  const toDate   = new Date();
+  const fromStr  = fromDate.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  const toStr    = toDate.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+  return fromStr === toStr ? fromStr : `${fromStr} – ${toStr}`;
 }
 
 export function ReportsView() {
-  const [range, setRange] = useState<RangeOption>(RANGE_OPTIONS[1]); // default: Last 6 months
+  const [range, setRange] = useState<RangeOption>(RANGE_OPTIONS[1]);
 
-  const months = resolvedMonths(range);
-  const catMonth = rangeEndMonth(range);
+  const months  = resolvedMonths(range);
+  const fromStr = rangeFromDate(range);
+  const toStr   = rangeToDate();
 
   const { rows: monthly,    loading: mLoading } = useMonthlySummary(months);
-  const { rows: cats,       loading: cLoading } = useCategoryBreakdown(catMonth);
-  const { rows: incomeCats, loading: icLoading } = useCategoryBreakdown(catMonth, "income");
+  const { rows: cats,       loading: cLoading } = useCategoryBreakdown(undefined, "expense", fromStr, toStr);
+  const { rows: incomeCats, loading: icLoading } = useCategoryBreakdown(undefined, "income",  fromStr, toStr);
 
   const chartData = monthly.map(r => ({
     month:    formatMonth(r.month),
@@ -55,9 +73,7 @@ export function ReportsView() {
     net:      r.net,
   }));
 
-  const subtitleLabel = range.ytd
-    ? `Jan – ${formatMonth(catMonth)}`
-    : range.label.toLowerCase();
+  const subtitleLabel = rangeLabel(range, fromStr);
 
   return (
     <div className="space-y-6">
@@ -157,15 +173,16 @@ export function ReportsView() {
         )}
       </div>
 
-      {/* Category breakdown — last month of selected range */}
+      {/* Spending by Category — full range */}
       <div className="ll-card p-4">
-        <p className="mb-4 text-sm font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
-          Spending by Category ({formatMonth(catMonth)})
+        <p className="mb-1 text-sm font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
+          Spending by Category
         </p>
+        <p className="mb-4 text-[11px]" style={{ color: "hsl(var(--ll-text-muted))" }}>{subtitleLabel}</p>
         {cLoading ? (
           <Skeleton className="h-52 w-full" />
         ) : cats.length === 0 ? (
-          <p className="py-8 text-center text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>No expense data for {formatMonth(catMonth)}</p>
+          <p className="py-8 text-center text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>No expense data for this period</p>
         ) : (
           <div className="flex flex-col items-center gap-4 sm:flex-row">
             <ResponsiveContainer width={180} height={180}>
@@ -184,11 +201,14 @@ export function ReportsView() {
                 <div key={c.categoryId} className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <div className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: c.colour || CHART_COLORS[i % CHART_COLORS.length] }} />
-                    <span className="flex items-center gap-1 text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}><CategoryIcon icon={c.icon} size={12} /> {c.name}</span>
+                    <span className="flex items-center gap-1 text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>
+                      <CategoryIcon icon={c.icon} size={12} /> {c.name}
+                    </span>
                   </div>
-                  <span className="ll-mono text-xs font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
-                    {c.percentage}%
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="ll-mono text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>{formatCurrency(c.total)}</span>
+                    <span className="ll-mono text-xs font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>{c.percentage}%</span>
+                  </div>
                 </div>
               ))}
             </div>
@@ -196,15 +216,16 @@ export function ReportsView() {
         )}
       </div>
 
-      {/* Income by category — last month of selected range */}
+      {/* Income by Category — full range */}
       <div className="ll-card p-4">
-        <p className="mb-4 text-sm font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
-          Income by Category ({formatMonth(catMonth)})
+        <p className="mb-1 text-sm font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
+          Income by Category
         </p>
+        <p className="mb-4 text-[11px]" style={{ color: "hsl(var(--ll-text-muted))" }}>{subtitleLabel}</p>
         {icLoading ? (
           <Skeleton className="h-52 w-full" />
         ) : incomeCats.length === 0 ? (
-          <p className="py-8 text-center text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>No income data for {formatMonth(catMonth)}</p>
+          <p className="py-8 text-center text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>No income data for this period</p>
         ) : (
           <div className="flex flex-col items-center gap-4 sm:flex-row">
             <ResponsiveContainer width={180} height={180}>
@@ -223,11 +244,14 @@ export function ReportsView() {
                 <div key={c.categoryId} className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-2">
                     <div className="h-2.5 w-2.5 flex-shrink-0 rounded-full" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
-                    <span className="flex items-center gap-1 text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}><CategoryIcon icon={c.icon} size={12} /> {c.name}</span>
+                    <span className="flex items-center gap-1 text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>
+                      <CategoryIcon icon={c.icon} size={12} /> {c.name}
+                    </span>
                   </div>
-                  <span className="ll-mono text-xs font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>
-                    {c.percentage}%
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className="ll-mono text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>{formatCurrency(c.total)}</span>
+                    <span className="ll-mono text-xs font-medium" style={{ color: "hsl(var(--ll-text-primary))" }}>{c.percentage}%</span>
+                  </div>
                 </div>
               ))}
             </div>

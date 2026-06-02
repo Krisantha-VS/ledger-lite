@@ -11,6 +11,15 @@ export interface BillingData {
   cancelAtPeriodEnd: boolean
   gracePeriodEndsAt: string | null
   inGracePeriod: boolean
+  // Entitlement usage
+  aiImportsUsed: number
+  aiImportsLimit: number | null      // null = unlimited
+  aiImportsRemaining: number | null  // null = unlimited
+  maxAccounts: number | null
+  maxGoals: number | null
+  historyMonths: number | null
+  accountsUsed: number
+  goalsUsed: number
 }
 
 export function useBilling() {

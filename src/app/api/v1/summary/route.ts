@@ -11,7 +11,14 @@ export async function GET(req: Request) {
     if (type === "categories") {
       const rawTxType = url.searchParams.get("txType");
       const txType: "income" | "expense" = rawTxType === "income" ? "income" : "expense";
-      return ok(await categoryBreakdown(userId, url.searchParams.get("month") ?? undefined, txType));
+      const from = url.searchParams.get("from") ?? undefined;
+      const to   = url.searchParams.get("to")   ?? undefined;
+      return ok(await categoryBreakdown(userId, url.searchParams.get("month") ?? undefined, txType, from, to));
+    }
+    if (type === "range") {
+      const from = url.searchParams.get("from") ?? undefined;
+      const to   = url.searchParams.get("to")   ?? undefined;
+      return ok(await rangeSummary(userId, from, to));
     }
     if (type === "dashboard")  return ok(await dashboardSummary(userId));
     if (type === "networth")   return ok(await netWorthSummary(userId));
@@ -34,13 +41,33 @@ async function monthlySummary(userId: string, months: number) {
   return rows.map(r => ({ ...r, net: r.income - r.expenses }));
 }
 
-async function categoryBreakdown(userId: string, month?: string, txType: "income" | "expense" = "expense") {
-  const now   = new Date();
-  const [y, m] = month
-    ? month.split("-").map(Number)
-    : [now.getFullYear(), now.getMonth() + 1];
-  const start = new Date(y, m - 1, 1);
-  const end   = new Date(y, m, 0, 23, 59, 59);
+async function rangeSummary(userId: string, from?: string, to?: string) {
+  const now = new Date();
+  const start = from ? new Date(from + "T00:00:00") : new Date(now.getFullYear(), now.getMonth(), 1);
+  const end   = to   ? new Date(to   + "T23:59:59") : new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+
+  const [data] = await db.$queryRaw<{ income: number; expenses: number }[]>`
+    SELECT COALESCE(SUM(CASE WHEN type='income'  THEN amount ELSE 0 END),0)::float AS income,
+           COALESCE(SUM(CASE WHEN type='expense' THEN amount ELSE 0 END),0)::float AS expenses
+    FROM "Transaction"
+    WHERE "userId"=${userId} AND date BETWEEN ${start} AND ${end} AND "deletedAt" IS NULL
+  `;
+  return { income: data?.income ?? 0, expenses: data?.expenses ?? 0, net: (data?.income ?? 0) - (data?.expenses ?? 0) };
+}
+
+async function categoryBreakdown(userId: string, month?: string, txType: "income" | "expense" = "expense", from?: string, to?: string) {
+  let start: Date, end: Date;
+  if (from && to) {
+    start = new Date(from + "T00:00:00");
+    end   = new Date(to   + "T23:59:59");
+  } else {
+    const now   = new Date();
+    const [y, m] = month
+      ? month.split("-").map(Number)
+      : [now.getFullYear(), now.getMonth() + 1];
+    start = new Date(y, m - 1, 1);
+    end   = new Date(y, m, 0, 23, 59, 59);
+  }
 
   type Row = { categoryId: number; name: string; colour: string; icon: string; total: number };
   const rows = await db.$queryRaw<Row[]>`

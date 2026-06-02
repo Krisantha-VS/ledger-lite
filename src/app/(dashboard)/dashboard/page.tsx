@@ -4,6 +4,7 @@ import { RecentTransactions } from "@/features/dashboard/components/recent-trans
 import { BudgetAlert } from "@/features/dashboard/components/budget-alert";
 import { CashflowWidget } from "@/features/dashboard/components/cashflow-widget";
 import { RecurringSuggestionsLoader } from "@/features/dashboard/components/recurring-suggestions-loader";
+import { GoalsProgressWidget } from "@/features/dashboard/components/goals-progress-widget";
 import { InsightsWidget } from "@/features/dashboard/components/insights-widget";
 import { AnomaliesWidget } from "@/features/dashboard/components/anomalies-widget";
 
@@ -26,8 +27,9 @@ export default function DashboardPage() {
       <AnomaliesWidget />
       <div className="grid gap-5 lg:grid-cols-2">
         <CashflowWidget />
-        <RecurringSuggestionsLoader />
+        <GoalsProgressWidget />
       </div>
+      <RecurringSuggestionsLoader />
       <RecentTransactions />
     </div>
   );

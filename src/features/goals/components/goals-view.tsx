@@ -1,10 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Plus, Flag } from "lucide-react";
+import { Plus, Flag, ChevronDown } from "lucide-react";
 import { useGoals } from "@/features/goals/hooks/useGoals";
 import { useAccounts } from "@/features/accounts/hooks/useAccounts";
 import { GoalCard } from "./goal-card";
@@ -24,12 +24,31 @@ const schema = z.object({
 });
 type FormData = z.infer<typeof schema>;
 
+type FilterType = "all" | "active" | "completed";
+type SortType   = "default" | "pct" | "date" | "amount";
+
+const FILTER_OPTIONS: { value: FilterType; label: string }[] = [
+  { value: "all",       label: "All" },
+  { value: "active",    label: "In Progress" },
+  { value: "completed", label: "Completed" },
+];
+
+const SORT_OPTIONS: { value: SortType; label: string }[] = [
+  { value: "default", label: "Date added" },
+  { value: "pct",     label: "% complete ↓" },
+  { value: "date",    label: "Target date ↑" },
+  { value: "amount",  label: "Target amount ↓" },
+];
+
 export function GoalsView() {
   const { goals, loading, createGoal, updateGoal, deleteGoal } = useGoals();
   const { accounts } = useAccounts();
 
   const [open, setOpen]         = useState(false);
   const [editGoal, setEditGoal] = useState<Goal | null>(null);
+  const [filter, setFilter]     = useState<FilterType>("all");
+  const [sort,   setSort]       = useState<SortType>("default");
+  const [sortOpen, setSortOpen] = useState(false);
 
   const { register, handleSubmit, reset, watch, setValue, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -69,6 +88,30 @@ export function GoalsView() {
     setOpen(false);
   };
 
+  const displayed = useMemo(() => {
+    let list = [...goals];
+    // Filter
+    if (filter === "active")    list = list.filter(g => !g.isCompleted);
+    if (filter === "completed") list = list.filter(g => g.isCompleted);
+    // Sort
+    list.sort((a, b) => {
+      if (sort === "pct") {
+        const pA = Number(a.targetAmount) > 0 ? (a.currentBalance ?? 0) / Number(a.targetAmount) : 0;
+        const pB = Number(b.targetAmount) > 0 ? (b.currentBalance ?? 0) / Number(b.targetAmount) : 0;
+        return pB - pA;
+      }
+      if (sort === "date") {
+        if (!a.targetDate && !b.targetDate) return 0;
+        if (!a.targetDate) return 1;
+        if (!b.targetDate) return -1;
+        return a.targetDate.localeCompare(b.targetDate);
+      }
+      if (sort === "amount") return Number(b.targetAmount) - Number(a.targetAmount);
+      return 0; // default: preserve API order
+    });
+    return list;
+  }, [goals, filter, sort]);
+
   return (
     <div className="space-y-5">
       <div className="flex items-center justify-between">
@@ -87,6 +130,45 @@ export function GoalsView() {
         </button>
       </div>
 
+      {/* Filter + Sort bar */}
+      {!loading && goals.length > 0 && (
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex gap-1">
+            {FILTER_OPTIONS.map(f => (
+              <button key={f.value} onClick={() => setFilter(f.value)}
+                className="cursor-pointer rounded-lg px-2.5 py-1 text-xs font-medium transition-all"
+                style={{
+                  background: filter === f.value ? "hsl(var(--ll-accent))" : "hsl(var(--ll-bg-surface))",
+                  color: filter === f.value ? "hsl(var(--ll-accent-fg))" : "hsl(var(--ll-text-muted))",
+                }}>
+                {f.label}
+              </button>
+            ))}
+          </div>
+          <div className="relative">
+            <button onClick={() => setSortOpen(p => !p)}
+              className="flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium border transition-colors"
+              style={{ background: "hsl(var(--ll-bg-surface))", color: "hsl(var(--ll-text-secondary))", borderColor: "hsl(var(--ll-border))" }}>
+              {SORT_OPTIONS.find(s => s.value === sort)?.label}
+              <ChevronDown className="h-3 w-3" />
+            </button>
+            {sortOpen && (
+              <div className="absolute right-0 mt-1 z-10 rounded-xl overflow-hidden shadow-lg min-w-[150px]"
+                style={{ background: "hsl(var(--ll-bg-elevated))", border: "1px solid hsl(var(--ll-border))" }}>
+                {SORT_OPTIONS.map(s => (
+                  <button key={s.value}
+                    onClick={() => { setSort(s.value); setSortOpen(false); }}
+                    className="flex w-full px-3 py-2 text-xs text-left transition-colors hover:bg-white/5"
+                    style={{ color: sort === s.value ? "hsl(var(--ll-accent))" : "hsl(var(--ll-text-secondary))" }}>
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {loading ? (
         <div className="grid gap-3 sm:grid-cols-2">
           {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-32 rounded-xl" />)}
@@ -102,9 +184,11 @@ export function GoalsView() {
             </button>
           }
         />
+      ) : displayed.length === 0 ? (
+        <p className="py-8 text-center text-xs" style={{ color: "hsl(var(--ll-text-muted))" }}>No goals match this filter.</p>
       ) : (
         <div className="grid gap-3 sm:grid-cols-2">
-          {goals.map(g => (
+          {displayed.map(g => (
             <GoalCard
               key={g.id} goal={g}
               onDelete={deleteGoal}
@@ -160,7 +244,7 @@ export function GoalsView() {
             className="flex w-full items-center justify-center rounded-lg py-2 text-sm font-medium text-white disabled:opacity-60"
             style={{ background: "hsl(var(--ll-accent))" }}
           >
-            {isSubmitting ? "Saving…" : editGoal ? "Update" : "Create Goal"}
+            {isSubmitting ? "Saving…" : editGoal ? "Update Goal" : "Create Goal"}
           </button>
         </form>
       </Modal>

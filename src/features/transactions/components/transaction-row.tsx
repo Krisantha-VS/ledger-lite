@@ -37,16 +37,27 @@ export const TransactionRow = memo(function TransactionRow({
 
       <div className="min-w-0 flex-1">
         <p className="truncate text-xs font-medium" title={tx.note ?? tx.categoryName} style={{ color: "hsl(var(--ll-text-primary))" }}>
-          {tx.note ?? tx.categoryName}
+          {tx.note ?? tx.categoryName ?? "—"}
         </p>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[11px]" style={{ color: "hsl(var(--ll-text-muted))" }}>
             {formatDate(tx.date, "short")}
           </span>
           <Badge variant={tx.type}>{tx.type}</Badge>
+          {tx.categoryName && (
+            <span className="flex items-center gap-0.5 text-[10px] rounded px-1 py-0.5" style={{ background: "hsl(var(--ll-bg-elevated))", color: "hsl(var(--ll-text-muted))" }}>
+              <CategoryIcon icon={tx.categoryIcon ?? "📦"} size={10} />
+              {tx.categoryName}
+            </span>
+          )}
+          {tx.accountName && (
+            <span className="text-[10px] rounded px-1 py-0.5 border" style={{ borderColor: "hsl(var(--ll-border))", color: "hsl(var(--ll-text-muted))" }}>
+              {tx.accountName}
+            </span>
+          )}
           {tx.isRecurring && (
             <span className="rounded bg-white/5 px-1 text-[10px]" style={{ color: "hsl(var(--ll-text-muted))" }}>
-              recurring
+              ↻ recurring
             </span>
           )}
         </div>

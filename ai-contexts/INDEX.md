@@ -1,7 +1,7 @@
 # LedgerLite — AI Context Index
 
 ## App Identity
-- **Name:** LedgerLite → **Clario** (rebrand pending — see PLAN-013)
+- **Name:** LedgerLite → **Klivo** (rebrand pending — see PLAN-013)
 - **Repo:** E:\GITPRJ\ledger-lite\
 - **Production:** https://ledger-lite-mu.vercel.app
 - **Portfolio entry:** /explore → demoUrl updated once deployed
@@ -19,7 +19,20 @@
 | P5 | Transaction editing, category management UI, CSV import, recurring UI, net worth KPI, date range reports, danger zone | ✅ done |
 | P6 | AI parser (PDF/CSV/XLSX/OFX), Dodo Payments, webhook, entitlements, billing UI, dunning cron, email infra | ✅ done |
 
-**Progress: 7 / 7 phases — FEATURE COMPLETE**
+**Progress: 7 / 7 phases + P7 UX polish — FEATURE COMPLETE**
+
+## P7 — UX Polish (2026-06-02)
+- **#1** Import page: AI quota badge (used/remaining progress bar + upgrade nudge)
+- **#2** Sidebar: rich subscription card with usage bars (AI imports, accounts, history)
+- **#3** Import: "Upgrade to Pro" CTA when quota exhausted
+- **#4** Transactions: date range filter (quick + custom), category filter, date grouping headers, period summary tiles (income/spending/net)
+- **#5** User Guide: new `/guide` page with 8 accordion sections, linked from sidebar
+- **#6** Dashboard: GoalsProgressWidget fills the cashflow grid gap; RecurringSuggestions moved below
+- **#7** Dashboard: recent transactions always show category tag
+- **#8/#9** Budgets: edit button + modal pre-fill, filter chips (All/Over/Near/OK), sort dropdown
+- **#10** Goals: filter chips (All/In Progress/Completed), sort dropdown (date/pct/target/amount)
+- **#11** Reports: range bug fixed — category breakdown now aggregates across full selected range
+- **#12** Settings: 100+ ISO 4217 currencies (was 9)
 
 ## Actual Build State (audited 2026-05-20)
 All of the following are implemented and in production code:
