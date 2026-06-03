@@ -30,9 +30,9 @@ export async function GET(req: Request) {
     const plan    = intent.plan    as DodoPlan
     const billing = intent.billing as DodoBilling
 
-    // Founding eligibility check
+    // Founding eligibility check (not applicable for credits)
     let founding = intent.founding
-    if (founding) {
+    if (founding && plan !== "credits") {
       const enabled = process.env.FOUNDING_MEMBER_ENABLED === "true"
       const max     = parseInt(process.env.FOUNDING_MEMBER_MAX ?? "100", 10)
       if (!enabled) {

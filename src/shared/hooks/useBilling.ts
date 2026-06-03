@@ -15,6 +15,7 @@ export interface BillingData {
   aiImportsUsed: number
   aiImportsLimit: number | null      // null = unlimited
   aiImportsRemaining: number | null  // null = unlimited
+  aiImportCredits: number
   maxAccounts: number | null
   maxGoals: number | null
   historyMonths: number | null

@@ -569,12 +569,24 @@ export function ImportView() {
                   <span className="font-normal ml-0.5" style={{ color: "hsl(var(--ll-text-muted))" }}>left</span>
                 </span>
               </div>
-              {billing.aiImportsRemaining === 0 && (
-                <button onClick={() => startCheckout("pro", "monthly")}
-                  className="flex items-center gap-1 text-[10px] font-medium"
-                  style={{ color: "hsl(var(--ll-accent))" }}>
-                  <Zap className="h-2.5 w-2.5" /> Upgrade to Pro for unlimited
-                </button>
+              {billing.aiImportsRemaining === 0 && billing.aiImportCredits > 0 && (
+                <span className="text-[10px] font-medium" style={{ color: "hsl(var(--ll-income))" }}>
+                  +{billing.aiImportCredits} bonus credit{billing.aiImportCredits !== 1 ? "s" : ""}
+                </span>
+              )}
+              {billing.aiImportsRemaining === 0 && billing.aiImportCredits === 0 && (
+                <div className="flex flex-col items-end gap-0.5">
+                  <button onClick={() => startCheckout("credits", "once")}
+                    className="flex items-center gap-1 text-[10px] font-medium rounded px-1.5 py-0.5"
+                    style={{ background: "hsl(var(--ll-accent)/0.12)", color: "hsl(var(--ll-accent))" }}>
+                    <Zap className="h-2.5 w-2.5" /> Buy 5 imports – $2
+                  </button>
+                  <button onClick={() => startCheckout("pro", "monthly")}
+                    className="text-[9px]"
+                    style={{ color: "hsl(var(--ll-text-muted))" }}>
+                    or upgrade to Pro →
+                  </button>
+                </div>
               )}
             </div>
           )

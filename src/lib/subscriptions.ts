@@ -63,7 +63,7 @@ export async function canUseAI(userId: string): Promise<boolean> {
   return ent.aiImportsPerMonth > 0
 }
 
-export async function checkAndIncrementAiImport(userId: string): Promise<{ allowed: boolean; remaining: number }> {
+export async function checkAndIncrementAiImport(userId: string): Promise<{ allowed: boolean; remaining: number; creditsUsed?: boolean; creditsRemaining?: number }> {
   const ent = await getEntitlements(userId)
 
   if (ent.aiImportsPerMonth === 0) return { allowed: false, remaining: 0 }
@@ -84,7 +84,15 @@ export async function checkAndIncrementAiImport(userId: string): Promise<{ allow
 
   const count = sub.aiImportCount ?? 0
   if (count >= ent.aiImportsPerMonth) {
-    return { allowed: false, remaining: 0 }
+    // Monthly quota exhausted — fall through to purchased credits
+    const credits = sub.aiImportCredits ?? 0
+    if (credits <= 0) return { allowed: false, remaining: 0 }
+
+    await db.subscription.update({
+      where: { userId },
+      data: { aiImportCredits: { decrement: 1 } },
+    })
+    return { allowed: true, remaining: 0, creditsUsed: true, creditsRemaining: credits - 1 }
   }
 
   await db.subscription.update({

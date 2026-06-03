@@ -32,6 +32,7 @@ export async function GET(req: Request) {
       aiImportsUsed: aiUsed,
       aiImportsLimit: aiLimit,
       aiImportsRemaining: aiLimit === null ? null : Math.max(0, aiLimit - aiUsed),
+      aiImportCredits: sub.aiImportCredits ?? 0,
       maxAccounts: ent.maxAccounts === Infinity ? null : ent.maxAccounts,
       maxGoals: ent.maxGoals === Infinity ? null : ent.maxGoals,
       historyMonths: ent.historyMonths === Infinity ? null : ent.historyMonths,

@@ -136,6 +136,11 @@ export function Sidebar() {
               <div>
                 <div className="flex items-center justify-between mb-0.5">
                   <span className="text-[10px]" style={{ color: "hsl(var(--ll-text-muted))" }}>AI Imports this month</span>
+                  {(billing.aiImportCredits ?? 0) > 0 && (
+                    <span className="text-[9px] font-medium px-1 rounded" style={{ background: "hsl(var(--ll-income)/0.1)", color: "hsl(var(--ll-income))" }}>
+                      +{billing.aiImportCredits} bonus
+                    </span>
+                  )}
                 </div>
                 <UsageBar used={billing.aiImportsUsed ?? 0} limit={billing.aiImportsLimit ?? null} />
               </div>

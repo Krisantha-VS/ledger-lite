@@ -1,5 +1,5 @@
 import { db } from "@/lib/db"
-import { planFromProductId } from "@/lib/payments/dodo"
+import { planFromProductId, isCreditsProduct } from "@/lib/payments/dodo"
 import { log } from "@/lib/logger"
 import { waitUntil } from "@vercel/functions"
 import crypto from "crypto"
@@ -129,6 +129,19 @@ export async function POST(req: Request) {
 
   // State machine
   try {
+    // ── One-time credit pack ──────────────────────────────────────────────────
+    if (productId && isCreditsProduct(productId) && ["payment.succeeded", "payment.completed", "order.paid"].includes(eventType)) {
+      await db.subscription.upsert({
+        where: { userId },
+        update: { aiImportCredits: { increment: 5 } },
+        create: { userId, plan: "free", status: "active", aiImportCredits: 5 },
+      })
+      if (intentId) await db.checkoutIntent.update({ where: { id: intentId }, data: { consumed: true } })
+      await db.paymentEvent.update({ where: { eventId }, data: { processedAt: new Date(), userId } })
+      log("info", "webhook.credits_granted", { eventId, eventType, userId })
+      return new Response("OK", { status: 200 })
+    }
+
     const currentPeriodEnd = data.current_period_end
       ? new Date(typeof data.current_period_end === "number"
           ? data.current_period_end * 1000
