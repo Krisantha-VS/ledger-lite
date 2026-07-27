@@ -27,7 +27,7 @@ jobs:
         with:
           path-to-signatures: '.github/cla-signatures.json'
           path-to-document: 'https://github.com/${{ github.repository }}/blob/master/.github/CLA.md'
-          branch: 'main'
+          branch: 'master'
           allowlist: bot*,dependabot*,github-actions*
           custom-notsigned-prcomment: |
             Thank you for your contribution! 🎉
